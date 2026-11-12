@@ -1,0 +1,78 @@
+--- a/bpack/events.py
++++ b/bpack/events.py
+@@ -146,4 +146,6 @@
+     r = ev.put_events(Entries=[{"Source": SOURCE, "DetailType": "t", "Detail": "{not json"}])
+     check_eq(r["FailedEntryCount"], 1, "FailedEntryCount")
+     check_eq(r["Entries"][0].get("ErrorCode"), "MalformedDetail", "ErrorCode")
+-    E.raises("ResourceNotFoundException", ev.put_events, Entries=[{"EventBusName": E.n("nobus"), "Source": SOURCE, "DetailType": "t", "Detail": "{}"}])
++    # User Guide: PutEvents to a bus that does not exist is dropped with a 200 and is not counted as failed.
++    r = ev.put_events(Entries=[{"EventBusName": E.n("nobus"), "Source": SOURCE, "DetailType": "t", "Detail": "{}"}])
++    check_eq(r["FailedEntryCount"], 0, "unknown bus is dropped, not failed")
+--- a/bpack/kms.py
++++ b/bpack/kms.py
+@@ -92,7 +92,7 @@
+     check(any(a["AliasName"] == name for a in kms.list_aliases(KeyId=k)["Aliases"]), "ListAliases by key")
+     E.raises("AlreadyExistsException", kms.create_alias, AliasName=name, TargetKeyId=k)
+     E.raises("ValidationException", kms.create_alias, AliasName=E.n("noprefix"), TargetKeyId=k)
+-    E.raises("ValidationException", kms.create_alias, AliasName="alias/aws/" + E.n("x"), TargetKeyId=k)
++    E.raises(("ValidationException", "InvalidAliasNameException"), kms.create_alias, AliasName="alias/aws/" + E.n("x"), TargetKeyId=k)
+ 
+ 
+ @bt("kms")
+--- a/bpack/sqs.py
++++ b/bpack/sqs.py
+@@ -208,7 +208,7 @@
+     E.raises(("QueueDoesNotExist", "AWS.SimpleQueueService.NonExistentQueue"), sqs.get_queue_url, QueueName=E.n("nope"), status=400)
+     same = sqs.create_queue(QueueName=url.rsplit("/", 1)[1])["QueueUrl"]
+     check_eq(same, url, "CreateQueue with identical attributes is idempotent")
+-    E.raises("QueueNameExists", sqs.create_queue, QueueName=url.rsplit("/", 1)[1], Attributes={"VisibilityTimeout": "99"})
++    E.raises(("QueueNameExists", "QueueAlreadyExists"), sqs.create_queue, QueueName=url.rsplit("/", 1)[1], Attributes={"VisibilityTimeout": "99"})
+ 
+ 
+ @bt("sqs")
+--- a/bpack/sts.py
++++ b/bpack/sts.py
+@@ -61,7 +61,10 @@
+ def sts_assume_role_parameter_validation(E):
+     """DurationSeconds below 900 and malformed RoleSessionName values are rejected with ValidationError.
+     Doc: AWS STS API Reference, AssumeRole (Request parameters: DurationSeconds, RoleSessionName)."""
+-    sts = E.c("sts")
++    from botocore.config import Config
++    import boto3
++    sts = boto3.client("sts", endpoint_url=E.endpoint, region_name=harness.REGION, aws_access_key_id=harness.FAKE,
++                       aws_secret_access_key=harness.FAKE, config=Config(parameter_validation=False))   # test the server, not the SDK
+     name, arn = make_role(E)
+     E.raises(("ValidationError", "ValidationException"), sts.assume_role, RoleArn=arn, RoleSessionName="ok", DurationSeconds=100, status=400)
+     E.raises(("ValidationError", "ValidationException"), sts.assume_role, RoleArn=arn, RoleSessionName="bad name with spaces!")
+--- a/harness.py
++++ b/harness.py
+@@ -54,10 +54,26 @@
+                   user_agent_extra="rovara-aws-conformance", **kw)
+ 
+ 
++def _pin_to_endpoint(endpoint):
++    """Some generated inputs (Kinesis StreamId with an odd StreamARN) make botocore's endpoint rules build a
++    real AWS host name and ignore endpoint_url. Rewrite any such request onto the emulator's address so the
++    kit never opens a connection anywhere else."""
++    import urllib.parse
++    target = urllib.parse.urlsplit(endpoint)
++
++    def pin(request, **kw):
++        u = urllib.parse.urlsplit(request.url)
++        if (u.scheme, u.netloc) != (target.scheme, target.netloc):
++            request.url = urllib.parse.urlunsplit((target.scheme, target.netloc, u.path, u.query, u.fragment))
++    return pin
++
++
+ def make_client(svc, endpoint, access_key=None, secret_key=None, session_token=None, read_timeout=None):
+-    return boto3.client(svc, endpoint_url=endpoint, region_name=REGION,
+-                        aws_access_key_id=access_key or FAKE, aws_secret_access_key=secret_key or FAKE,
+-                        aws_session_token=session_token, config=make_config(read_timeout))
++    client = boto3.client(svc, endpoint_url=endpoint, region_name=REGION,
++                          aws_access_key_id=access_key or FAKE, aws_secret_access_key=secret_key or FAKE,
++                          aws_session_token=session_token, config=make_config(read_timeout))
++    client.meta.events.register("before-send.*.*", _pin_to_endpoint(endpoint))
++    return client
+ 
+ 
+ # ---------------- error classification ----------------

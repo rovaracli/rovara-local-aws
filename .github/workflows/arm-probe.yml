@@ -1,0 +1,17 @@
+# One-off check that a GitHub-hosted arm64 runner is available to this private repository.
+# MANUAL ONLY (owner rule: CI cost): workflow_dispatch, no other trigger. Prints the CPU type and exits.
+name: arm-probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 3
+    steps:
+      - name: CPU type
+        run: uname -m && nproc && free -m
