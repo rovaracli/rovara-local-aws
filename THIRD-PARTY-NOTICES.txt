@@ -1,0 +1,222 @@
+THIRD-PARTY NOTICES - Rovara local AWS
+
+Rovara local AWS bundles the third-party software listed below. Each entry shows the licence the
+project declares, the component name, and its Maven coordinates. This list is generated from the
+build's runtime dependency tree (license-maven-plugin 2.4.0, scopes compile and runtime).
+
+Licence elections for components offered under more than one licence:
+  - Components declared "Apache ... or LGPL" (the btf and related java-json-tools libraries) are
+    used under the Apache License, Version 2.0.
+  - Components declared "EPL ... or GPL with the Classpath Exception" (Jakarta and Eclipse
+    components) are used under the Eclipse Public License (EPL-2.0 or EPL-1.0 as declared) or the
+    Eclipse Distribution License; none is used under the GPL.
+
+Full licence texts:
+  - Apache License, Version 2.0: licenses/Apache-2.0.txt in the source tree; also
+    https://www.apache.org/licenses/LICENSE-2.0.txt
+  - MIT, BSD-2-Clause, BSD-3-Clause, MIT-0: the standard texts; each component's own notice is in
+    its jar (META-INF/LICENSE or similar).
+  - Eclipse Public License 2.0: https://www.eclipse.org/legal/epl-2.0/ ; Eclipse Public License
+    1.0: https://www.eclipse.org/legal/epl-v10.html ; Eclipse Distribution License 1.0:
+    https://www.eclipse.org/org/documents/edl-v10.php
+  - Mozilla Public License 2.0: https://www.mozilla.org/MPL/2.0/
+  - Bouncy Castle Licence (an MIT-style licence), reproduced below.
+
+Bouncy Castle Licence
+
+Copyright (c) 2000 - 2025 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+associated documentation files (the "Software"), to deal in the Software without restriction,
+including without limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or
+substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+A native-image build also contains parts of the GraalVM runtime (Substrate VM), which is
+distributed by the GraalVM Community Edition under the GPL 2 with the Classpath Exception (and
+the UPL for some parts). The licence terms of the shipped runtime still have to be audited before
+the first distribution of a native build.
+
+Bundled components (173):
+     (Apache-2.0) Apache Commons Codec (commons-codec:commons-codec:1.22.1 - https://commons.apache.org/proper/commons-codec/)
+     (Apache-2.0) Apache Commons IO (commons-io:commons-io:2.22.0 - https://commons.apache.org/proper/commons-io/)
+     (Apache-2.0) Apache Commons Lang (org.apache.commons:commons-lang3:3.20.0 - https://commons.apache.org/proper/commons-lang/)
+     (Apache License, Version 2.0) Apache HttpClient (org.apache.httpcomponents:httpclient:4.5.14 - http://hc.apache.org/httpcomponents-client-ga)
+     (Apache License, Version 2.0) Apache HttpCore (org.apache.httpcomponents:httpcore:4.4.16 - http://hc.apache.org/httpcomponents-core-ga)
+     (Apache License, Version 2.0) ArC - Runtime (io.quarkus.arc:arc:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (BSD-3-Clause) asm (org.ow2.asm:asm:9.10.1 - http://asm.ow2.io/)
+     (The Apache Software License, Version 2.0) ASM based accessors helper used by json-smart (net.minidev:accessors-smart:2.6.0 - https://urielch.github.io/)
+     (Bouncy Castle Licence) Bouncy Castle ASN.1 Extension and Utility APIs (org.bouncycastle:bcutil-jdk18on:1.86 - https://www.bouncycastle.org/download/bouncy-castle-java/)
+     (Bouncy Castle Licence) Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs (org.bouncycastle:bcpkix-jdk18on:1.86 - https://www.bouncycastle.org/download/bouncy-castle-java/)
+     (Bouncy Castle Licence) Bouncy Castle Provider (org.bouncycastle:bcprov-jdk18on:1.86 - https://www.bouncycastle.org/download/bouncy-castle-java/)
+     (Apache License 2.0) Brotli4j (com.aayushatharva.brotli4j:brotli4j:1.23.0 - https://github.com/hyperxpro/Brotli4j/brotli4j)
+     (Apache License 2.0) Brotli4j (com.aayushatharva.brotli4j:service:1.23.0 - https://github.com/hyperxpro/Brotli4j/service)
+     (Apache Software License, version 2.0) (Lesser General Public License, version 3 or greater) btf (com.github.java-json-tools:btf:1.3 - https://github.com/java-json-tools/btf)
+     (Apache License 2.0) CDI APIs (jakarta.enterprise:jakarta.enterprise.cdi-api:4.1.0 - http://cdi-spec.org)
+     (Apache License 2.0) CDI Language Model (jakarta.enterprise:jakarta.enterprise.lang-model:4.1.0 - https://projects.eclipse.org/projects/ee4j/jakarta.enterprise.cdi-parent/jakarta.enterprise.lang-model)
+     (Apache License, Version 2.0) com.dashjoin:jsonata (com.dashjoin:jsonata:0.9.10 - https://github.com/dashjoin/jsonata-java)
+     (Apache License 2.0) Commons Logging to JBoss Logging (org.jboss.logging:commons-logging-jboss-logging:2.0.0.Final - http://www.jboss.org)
+     (BSD-2-Clause) crac (org.crac:crac:1.5.0 - https://github.com/crac/org.crac)
+     (Apache 2.0) cron-utils (com.cronutils:cron-utils:9.2.1 - http://cron-parser.com/)
+     (Eclipse Public License 2.0) (GNU General Public License, version 2 with the GNU Classpath Exception) Eclipse Parsson (org.eclipse.parsson:parsson:1.1.9 - https://github.com/eclipse-ee4j/parsson/parsson)
+     (Apache 2.0) error-prone annotations (com.google.errorprone:error_prone_annotations:2.49.0 - https://errorprone.info/error_prone_annotations)
+     (The Apache Software License, Version 2.0) FindBugs-jsr305 (com.google.code.findbugs:jsr305:3.0.2 - http://findbugs.sourceforge.net/)
+     (The Apache Software License, Version 2.0) Guava InternalFutureFailureAccess and InternalFutures (com.google.guava:failureaccess:1.0.1 - https://github.com/google/guava/failureaccess)
+     (Apache License, Version 2.0) Guava: Google Core Libraries for Java (com.google.guava:guava:33.6.0-jre - https://github.com/google/guava)
+     (Apache License, Version 2.0) Internet Time Utility (com.ethlo.time:itu:1.14.0 - https://github.com/ethlo/itu)
+     (Apache License, Version 2.0) J2ObjC Annotations (com.google.j2objc:j2objc-annotations:2.8 - https://github.com/google/j2objc/)
+     (The Apache Software License, Version 2.0) Jackson dataformat: CBOR (com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.22.4 - https://github.com/FasterXML/jackson-dataformats-binary)
+     (The Apache Software License, Version 2.0) Jackson datatype: jdk8 (com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.4 - https://github.com/FasterXML/jackson-modules-java8/jackson-datatype-jdk8)
+     (The Apache Software License, Version 2.0) Jackson datatype: JSR310 (com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.4 - https://github.com/FasterXML/jackson-modules-java8/jackson-datatype-jsr310)
+     (The Apache Software License, Version 2.0) Jackson-annotations (com.fasterxml.jackson.core:jackson-annotations:2.22 - https://github.com/FasterXML/jackson)
+     (The Apache Software License, Version 2.0) Jackson-core (com.fasterxml.jackson.core:jackson-core:2.22.4 - https://github.com/FasterXML/jackson-core)
+     (Apache Software License, version 2.0) (Lesser General Public License, version 3 or greater) jackson-coreutils (com.github.java-json-tools:jackson-coreutils:2.0 - https://github.com/java-json-tools/jackson-coreutils)
+     (Apache Software License, version 2.0) (Lesser General Public License, version 3 or greater) jackson-coreutils-equivalence (com.github.java-json-tools:jackson-coreutils-equivalence:1.0 - https://github.com/java-json-tools/jackson-coreutils)
+     (The Apache Software License, Version 2.0) jackson-databind (com.fasterxml.jackson.core:jackson-databind:2.22.4 - https://github.com/FasterXML/jackson)
+     (The Apache Software License, Version 2.0) Jackson-dataformat-YAML (com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.4 - https://github.com/FasterXML/jackson-dataformats-text)
+     (The Apache Software License, Version 2.0) Jackson-module-parameter-names (com.fasterxml.jackson.module:jackson-module-parameter-names:2.22.4 - https://github.com/FasterXML/jackson-modules-java8/jackson-module-parameter-names)
+     (EDL 1.0) Jakarta Activation API (jakarta.activation:jakarta.activation-api:2.1.4 - https://github.com/jakartaee/jaf-api)
+     (EPL 2.0) (GPL2 w/ CPE) Jakarta Annotations API (jakarta.annotation:jakarta.annotation-api:3.0.0 - https://projects.eclipse.org/projects/ee4j.ca)
+     (The Apache Software License, Version 2.0) Jakarta Dependency Injection (jakarta.inject:jakarta.inject-api:2.0.1 - https://github.com/eclipse-ee4j/injection-api)
+     (Eclipse Public License v. 2.0) (GNU General Public License, version 2 with the GNU Classpath Exception) Jakarta Expression Language API (jakarta.el:jakarta.el-api:6.0.1 - https://projects.eclipse.org/projects/ee4j.el)
+     (EPL 2.0) (GPL2 w/ CPE) Jakarta Interceptors (jakarta.interceptor:jakarta.interceptor-api:2.2.0 - https://github.com/jakartaee/interceptors)
+     (Eclipse Public License 2.0) (GNU General Public License, version 2 with the GNU Classpath Exception) Jakarta JSON Processing API (jakarta.json:jakarta.json-api:2.1.3 - https://github.com/eclipse-ee4j/jsonp)
+     (EPL-2.0) (GPL-2.0-with-classpath-exception) Jakarta RESTful WS API (jakarta.ws.rs:jakarta.ws.rs-api:3.1.0 - https://github.com/eclipse-ee4j/jaxrs-api)
+     (Apache License 2.0) Jakarta Validation API (jakarta.validation:jakarta.validation-api:3.1.1 - https://beanvalidation.org)
+     (Eclipse Distribution License - v 1.0) Jakarta XML Binding API (jakarta.xml.bind:jakarta.xml.bind-api:4.0.5 - https://github.com/jakartaee/jaxb-api/jakarta.xml.bind-api)
+     (EPL 2.0) (GPL2 w/ CPE) jakarta.transaction API (jakarta.transaction:jakarta.transaction-api:2.0.1 - https://projects.eclipse.org/projects/ee4j.jta)
+     (Apache License, Version 2.0) Java Concurrency Tools Core Library (org.jctools:jctools-core:4.0.5 - https://github.com/JCTools)
+     (Apache License 2.0) JBoss Log Manager (org.jboss.logmanager:jboss-logmanager:3.2.2.Final - http://www.jboss.org)
+     (Apache License 2.0) JBoss Logging 3 (org.jboss.logging:jboss-logging:3.6.3.Final - https://www.jboss.org)
+     (Apache License 2.0) JBoss Threads (org.jboss.threads:jboss-threads:3.9.2 - https://github.com/jbossas/jboss-threads)
+     (Apache License, Version 2.0) Joda-Time (joda-time:joda-time:2.10.5 - https://www.joda.org/joda-time/)
+     (The MIT License) JOpt Simple (net.sf.jopt-simple:jopt-simple:5.0.4 - http://jopt-simple.github.io/jopt-simple)
+     (The Apache Software License, Version 2.0) JSON Small and Fast Parser (net.minidev:json-smart:2.6.0 - https://urielch.github.io/)
+     (Apache Software License, version 2.0) (Lesser General Public License, version 3 or greater) json-patch (com.github.java-json-tools:json-patch:1.13 - https://github.com/java-json-tools/json-patch)
+     (The Apache Software License, Version 2.0) json-path (com.jayway.jsonpath:json-path:3.0.0 - https://github.com/jayway/JsonPath)
+     (Apache Software License, version 2.0) (Lesser General Public License, version 3 or greater) json-schema-core (com.github.java-json-tools:json-schema-core:1.2.14 - https://github.com/java-json-tools/json-schema-core)
+     (Apache Software License, version 2.0) (Lesser General Public License, version 3 or greater) json-schema-validator (com.github.java-json-tools:json-schema-validator:2.2.14 - https://github.com/java-json-tools/json-schema-validator)
+     (Apache License Version 2.0) JsonSchemaValidator (com.networknt:json-schema-validator:1.5.9 - https://github.com/networknt/json-schema-validator)
+     (The Apache License, Version 2.0) JSpecify annotations (org.jspecify:jspecify:1.0.0 - http://jspecify.org/)
+     (The Apache Software License, Version 2.0) libphonenumber (com.googlecode.libphonenumber:libphonenumber:8.11.1 - https://github.com/google/libphonenumber/)
+     (Apache License, Version 2.0) MicroProfile Config API (org.eclipse.microprofile.config:microprofile-config-api:3.1.1 - https://microprofile.io/project/eclipse/microprofile-config/microprofile-config-api)
+     (Apache License, Version 2.0) MicroProfile Context Propagation (org.eclipse.microprofile.context-propagation:microprofile-context-propagation-api:1.3 - http://microprofile.io/microprofile-context-propagation-api)
+     (Apache Software License, version 2.0) (Lesser General Public License, version 3 or greater) msg-simple (com.github.java-json-tools:msg-simple:1.2 - https://github.com/java-json-tools/msg-simple)
+     (Apache License, Version 2.0) Netty/Buffer (io.netty:netty-buffer:4.1.139.Final - https://netty.io/netty-buffer/)
+     (Apache License, Version 2.0) Netty/Codec (io.netty:netty-codec:4.1.139.Final - https://netty.io/netty-codec/)
+     (Apache License, Version 2.0) Netty/Codec/DNS (io.netty:netty-codec-dns:4.1.139.Final - https://netty.io/netty-codec-dns/)
+     (Apache License, Version 2.0) Netty/Codec/HAProxy (io.netty:netty-codec-haproxy:4.1.139.Final - https://netty.io/netty-codec-haproxy/)
+     (Apache License, Version 2.0) Netty/Codec/HTTP (io.netty:netty-codec-http:4.1.139.Final - https://netty.io/netty-codec-http/)
+     (Apache License, Version 2.0) Netty/Codec/HTTP2 (io.netty:netty-codec-http2:4.1.139.Final - https://netty.io/netty-codec-http2/)
+     (Apache License, Version 2.0) Netty/Codec/Socks (io.netty:netty-codec-socks:4.1.139.Final - https://netty.io/netty-codec-socks/)
+     (Apache License, Version 2.0) Netty/Common (io.netty:netty-common:4.1.139.Final - https://netty.io/netty-common/)
+     (Apache License, Version 2.0) Netty/Handler (io.netty:netty-handler:4.1.139.Final - https://netty.io/netty-handler/)
+     (Apache License, Version 2.0) Netty/Handler/Proxy (io.netty:netty-handler-proxy:4.1.139.Final - https://netty.io/netty-handler-proxy/)
+     (Apache License, Version 2.0) Netty/Resolver (io.netty:netty-resolver:4.1.139.Final - https://netty.io/netty-resolver/)
+     (Apache License, Version 2.0) Netty/Resolver/DNS (io.netty:netty-resolver-dns:4.1.139.Final - https://netty.io/netty-resolver-dns/)
+     (The Apache Software License, Version 2.0) Netty/TomcatNative [OpenSSL - Classes] (io.netty:netty-tcnative-classes:2.0.84.Final - https://github.com/netty/netty-tcnative/netty-tcnative-classes/)
+     (Apache License, Version 2.0) Netty/Transport (io.netty:netty-transport:4.1.139.Final - https://netty.io/netty-transport/)
+     (Apache License, Version 2.0) Netty/Transport/Native/Unix/Common (io.netty:netty-transport-native-unix-common:4.1.139.Final - https://netty.io/netty-transport-native-unix-common/)
+     (The Apache Software License, Version 2.0) Quarkus - ArC - Runtime (io.quarkus:quarkus-arc:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (Apache License, Version 2.0) Quarkus - Bootstrap - Classloader common utilities (io.quarkus:quarkus-classloader-commons:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (Apache License, Version 2.0) Quarkus - Bootstrap - Runner (io.quarkus:quarkus-bootstrap-runner:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Configuration - YAML - Runtime (io.quarkus:quarkus-config-yaml:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Core - Runtime (io.quarkus:quarkus-core:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Credentials - Runtime (io.quarkus:quarkus-credentials:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Development mode - SPI (io.quarkus:quarkus-development-mode-spi:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (Apache License, Version 2.0) Quarkus - FS Util (io.quarkus:quarkus-fs-util:1.4.2 - https://quarkus.io/)
+     (The Apache Software License, Version 2.0) Quarkus - IDE Launcher (io.quarkus:quarkus-ide-launcher:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Jackson - Runtime (io.quarkus:quarkus-jackson:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - JSON-P - Runtime (io.quarkus:quarkus-jsonp:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Mutiny - Runtime (io.quarkus:quarkus-mutiny:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Netty - Runtime (io.quarkus:quarkus-netty:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - REST - Common - Runtime (io.quarkus:quarkus-rest-common:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - REST - Jackson - Runtime (io.quarkus:quarkus-rest-jackson:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - REST - Jackson Common Bits - Runtime (io.quarkus:quarkus-rest-jackson-common:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - REST - Runtime (io.quarkus:quarkus-rest:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Security - Runtime (io.quarkus:quarkus-security:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Security - Runtime SPI (io.quarkus:quarkus-security-runtime-spi:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - SmallRye Context Propagation - Runtime (io.quarkus:quarkus-smallrye-context-propagation:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - TLS Registry - Runtime (io.quarkus:quarkus-tls-registry:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - TLS Registry - Runtime SPI (io.quarkus:quarkus-tls-registry-spi:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (Apache License, Version 2.0) Quarkus - Value Registry (io.quarkus:quarkus-value-registry:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Vert.x - HTTP - Runtime (io.quarkus:quarkus-vertx-http:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Vert.x - Runtime (io.quarkus:quarkus-vertx:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus - Vert.x Late Bound MDC Provider (io.quarkus:quarkus-vertx-latebound-mdc-provider:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (Apache License, Version 2.0) Quarkus - Vert.x Utils (io.quarkus.vertx.utils:quarkus-vertx-utils:3.40.1.1 - https://quarkus.io)
+     (The Apache Software License, Version 2.0) Quarkus - Virtual Threads - Runtime (io.quarkus:quarkus-virtual-threads:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (The Apache Software License, Version 2.0) Quarkus Security API (io.quarkus.security:quarkus-security:2.3.2 - http://www.jboss.org)
+     (MIT-0) reactive-streams (org.reactivestreams:reactive-streams:1.0.4 - http://www.reactive-streams.org/)
+     (Apache License, Version 2.0) RESTEasy Reactive - Common Runtime (io.quarkus.resteasy.reactive:resteasy-reactive-common:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (Apache License, Version 2.0) RESTEasy Reactive - Common Types (io.quarkus.resteasy.reactive:resteasy-reactive-common-types:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (Apache License, Version 2.0) RESTEasy Reactive - Jackson Support - Runtime (io.quarkus.resteasy.reactive:resteasy-reactive-jackson:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (Apache License, Version 2.0) RESTEasy Reactive - Runtime (io.quarkus.resteasy.reactive:resteasy-reactive:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (Apache License, Version 2.0) RESTEasy Reactive - Vert.x Support - Runtime (io.quarkus.resteasy.reactive:resteasy-reactive-vertx:3.40.1.1 - https://github.com/quarkusio/quarkus)
+     (Mozilla Public License, Version 2.0) rhino (org.mozilla:rhino:1.7.15.1 - https://mozilla.github.io/rhino/)
+     (MIT) SLF4J API Module (org.slf4j:slf4j-api:2.0.18 - http://www.slf4j.org)
+     (Apache License 2.0) SLF4J: JBoss Log Manager (org.jboss.slf4j:slf4j-jboss-logmanager:2.0.2.Final - http://www.jboss.org)
+     (Apache License 2.0) SmallRye Certificate Generator - Private Key PEM utilities (io.smallrye.certs:smallrye-private-key-pem-parser:0.9.4 - https://github.com/cescoffier/certificate-generator)
+     (Apache License, Version 2.0) SmallRye Common: Annotations (io.smallrye.common:smallrye-common-annotation:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: Classloader (io.smallrye.common:smallrye-common-classloader:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: Constraints (io.smallrye.common:smallrye-common-constraint:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: CPU (io.smallrye.common:smallrye-common-cpu:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: Expressions (io.smallrye.common:smallrye-common-expression:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: Functions (io.smallrye.common:smallrye-common-function:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: IO (io.smallrye.common:smallrye-common-io:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: Net (io.smallrye.common:smallrye-common-net:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: OS (io.smallrye.common:smallrye-common-os:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: References (io.smallrye.common:smallrye-common-ref:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: Search (io.smallrye.common:smallrye-common-search:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Common: Vert.x 4 Context Utilities (io.smallrye.common:smallrye-common-vertx-context:2.19.0 - http://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Config: CDI (io.smallrye.config:smallrye-config:3.17.2 - https://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Config: Common (io.smallrye.config:smallrye-config-common:3.17.2 - https://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Config: ConfigSource - YAML (io.smallrye.config:smallrye-config-source-yaml:3.17.2 - https://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Config: Core (io.smallrye.config:smallrye-config-core:3.17.2 - https://smallrye.io)
+     (The Apache Software License, Version 2.0) SmallRye Context Propagation: API (io.smallrye:smallrye-context-propagation-api:2.3.0 - https://github.com/smallrye/smallrye-context-propagation)
+     (The Apache Software License, Version 2.0) SmallRye Context Propagation: Core (io.smallrye:smallrye-context-propagation:2.3.0 - https://github.com/smallrye/smallrye-context-propagation)
+     (The Apache Software License, Version 2.0) SmallRye Context Propagation: Storage (io.smallrye:smallrye-context-propagation-storage:2.3.0 - https://github.com/smallrye/smallrye-context-propagation)
+     (Apache License, Version 2.0) SmallRye Fault Tolerance: Vert.x Integration (io.smallrye:smallrye-fault-tolerance-vertx:6.11.4 - https://smallrye.io)
+     (Apache License, Version 2.0) SmallRye Mutiny - Core library (io.smallrye.reactive:mutiny:3.3.0 - https://smallrye.io/smallrye-mutiny)
+     (Apache License, Version 2.0) SmallRye Mutiny - Integration with SmallRye Context Propagation (io.smallrye.reactive:mutiny-smallrye-context-propagation:3.3.0 - https://smallrye.io/smallrye-mutiny)
+     (The Apache Software License, Version 2.0) SmallRye Mutiny - Runtime Helpers (io.smallrye.reactive:smallrye-mutiny-vertx-runtime:3.23.1 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+     (The Apache Software License, Version 2.0) SmallRye Mutiny - Vert.x Auth Common (io.smallrye.reactive:smallrye-mutiny-vertx-auth-common:3.23.1 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+     (The Apache Software License, Version 2.0) SmallRye Mutiny - Vert.x Bridge Common (io.smallrye.reactive:smallrye-mutiny-vertx-bridge-common:3.23.1 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+     (The Apache Software License, Version 2.0) SmallRye Mutiny - Vert.x Core (io.smallrye.reactive:smallrye-mutiny-vertx-core:3.23.1 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+     (The Apache Software License, Version 2.0) SmallRye Mutiny - Vert.x URI Template (io.smallrye.reactive:smallrye-mutiny-vertx-uri-template:3.23.1 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+     (The Apache Software License, Version 2.0) SmallRye Mutiny - Vert.x Web (io.smallrye.reactive:smallrye-mutiny-vertx-web:3.23.1 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+     (The Apache Software License, Version 2.0) SmallRye Mutiny - Vert.x Web Client (io.smallrye.reactive:smallrye-mutiny-vertx-web-client:3.23.1 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+     (The Apache Software License, Version 2.0) SmallRye Mutiny - Vert.x Web Common (io.smallrye.reactive:smallrye-mutiny-vertx-web-common:3.23.1 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+     (Apache License, Version 2.0) SmallRye Mutiny Zero JDK Flow / Reactive Streams Adapters (io.smallrye.reactive:mutiny-zero-flow-adapters:1.2.1 - https://smallrye.io)
+     (Apache License, Version 2.0) SnakeYAML (org.yaml:snakeyaml:2.6 - https://bitbucket.org/snakeyaml/snakeyaml)
+     (Apache License 2.0) swagger-annotations (io.swagger:swagger-annotations:1.6.16 - https://github.com/swagger-api/swagger-core/modules/swagger-annotations)
+     (Apache License 2.0) swagger-annotations (io.swagger.core.v3:swagger-annotations:2.2.53 - https://github.com/swagger-api/swagger-core/modules/swagger-annotations)
+     (Apache License 2.0) swagger-compat-spec-parser (io.swagger:swagger-compat-spec-parser:1.0.76 - https://github.com/swagger-api/swagger-parser/modules/swagger-compat-spec-parser)
+     (Apache License 2.0) swagger-core (io.swagger:swagger-core:1.6.16 - https://github.com/swagger-api/swagger-core/modules/swagger-core)
+     (Apache License 2.0) swagger-core (io.swagger.core.v3:swagger-core:2.2.53 - https://github.com/swagger-api/swagger-core/modules/swagger-core)
+     (Apache License 2.0) swagger-models (io.swagger:swagger-models:1.6.16 - https://github.com/swagger-api/swagger-core/modules/swagger-models)
+     (Apache License 2.0) swagger-models (io.swagger.core.v3:swagger-models:2.2.53 - https://github.com/swagger-api/swagger-core/modules/swagger-models)
+     (Apache License 2.0) swagger-parser (io.swagger:swagger-parser:1.0.76 - https://github.com/swagger-api/swagger-parser/modules/swagger-parser)
+     (Apache License 2.0) swagger-parser (io.swagger.parser.v3:swagger-parser:2.1.48 - https://github.com/swagger-api/swagger-parser/modules/swagger-parser)
+     (Apache License 2.0) swagger-parser-core (io.swagger.parser.v3:swagger-parser-core:2.1.48 - https://github.com/swagger-api/swagger-parser/modules/swagger-parser-core)
+     (Apache License 2.0) swagger-parser-safe-url-resolver (io.swagger:swagger-parser-safe-url-resolver:1.0.76 - https://github.com/swagger-api/swagger-parser/modules/swagger-parser-safe-url-resolver)
+     (Apache License 2.0) swagger-parser-safe-url-resolver (io.swagger.parser.v3:swagger-parser-safe-url-resolver:2.1.48 - https://github.com/swagger-api/swagger-parser/modules/swagger-parser-safe-url-resolver)
+     (Apache License 2.0) swagger-parser-v2-converter (io.swagger.parser.v3:swagger-parser-v2-converter:2.1.48 - https://github.com/swagger-api/swagger-parser/modules/swagger-parser-v2-converter)
+     (Apache License 2.0) swagger-parser-v3 (io.swagger.parser.v3:swagger-parser-v3:2.1.48 - https://github.com/swagger-api/swagger-parser/modules/swagger-parser-v3)
+     (Apache Software License, version 2.0) (Lesser General Public License, version 3 or greater) uri-template (com.github.java-json-tools:uri-template:0.10 - https://github.com/java-json-tools/uri-template)
+     (Eclipse Public License - v 1.0) (The Apache Software License, Version 2.0) Vert.x Auth Common (io.vertx:vertx-auth-common:4.5.35 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-auth-parent/vertx-auth-common)
+     (Eclipse Public License - v 1.0) (The Apache Software License, Version 2.0) Vert.x Bridge Common (io.vertx:vertx-bridge-common:4.5.35 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-bridge-common)
+     (Eclipse Public License - v 2.0) (The Apache Software License, Version 2.0) Vert.x Core (io.vertx:vertx-core:4.5.35 - https://github.com/vert-x3/vertx-parent/vertx-core)
+     (Eclipse Public License - v 1.0) (The Apache Software License, Version 2.0) Vert.x URI Template (io.vertx:vertx-uri-template:4.5.35 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-uri-template)
+     (Eclipse Public License - v 2.0) (The Apache Software License, Version 2.0) Vert.x Web (io.vertx:vertx-web:4.5.35 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-web-parent/vertx-web)
+     (Eclipse Public License - v 1.0) (The Apache Software License, Version 2.0) Vert.x Web Client (io.vertx:vertx-web-client:4.5.35 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-web-parent/vertx-web-client)
+     (Eclipse Public License - v 1.0) (The Apache Software License, Version 2.0) Vert.x Web Common (io.vertx:vertx-web-common:4.5.35 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-web-parent/vertx-web-common)
+     (Apache License 2.0) wildfly-common (org.wildfly.common:wildfly-common:2.0.1 - http://www.jboss.org)

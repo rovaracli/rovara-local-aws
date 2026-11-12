@@ -1,0 +1,110 @@
+{
+  "_notes": {
+    "readme": "Draft. '_notes' is documentation for reviewers and is NOT part of the catalog schema (entries are strict): scripts/image-build.sh drops it from the filled entry, and it must not be copied into catalog.json.",
+    "runEnv": {
+      "ROVARA_AWS_CONTROL_TOKEN": "random per run; the run's own code never receives it. Without it every /_rovara/* path except /_rovara/health answers 403.",
+      "QUARKUS_HTTP_HOST": "the run IP literal of this container on the services network (for example 172.30.4.16); the emulator binds 127.0.0.1 by default and refuses a wildcard such as 0.0.0.0.",
+      "ROVARA_AWS_BASE_URL": "http://aws:4566 (the run alias). With a token set the emulator refuses to start unless this is set and is not the development default.",
+      "ROVARA_AWS_AUTH_PRESIGN_SECRET": "random per run, 16 or more characters; the emulator refuses to start with a token set and this missing or default.",
+      "ROVARA_AWS_SERVICES_SQS_RECEIPT_HANDLE_SECRET": "random per run, 16 or more characters; same rule."
+    },
+    "neverSet": [
+      "ROVARA_AWS_DEV_OPEN_CONTROL",
+      "DOCKER_HOST"
+    ],
+    "health": "GET /_rovara/health is open (no token). The catalog in Rovara still says /__rovara/health and must be fixed at merge.",
+    "memory": "resources.memMiB 384 (Rovara catalog, 2026-11-03): the native gate measured 129 MiB total peak (39 MiB private) + the 64 MiB /tmp tmpfs + 128 MiB headroom for in-memory test data, rounded up. The ENTRYPOINT caps the heap with -Xmx192m so the Substrate VM default (a share of the container limit) cannot be OOM-killed; re-measure inside a 384 MiB container on staging.",
+    "platforms": "The first image is linux/arm64 only (Rovara's workers are Graviton). scripts/image-build.sh writes the platforms it built into the filled entry; add linux/amd64 only if a customer needs it (the catalog then needs an index of exactly both)."
+  },
+  "id": "local-aws@r1",
+  "family": "local-aws",
+  "backing": "emulated",
+  "version": "r1",
+  "status": "default",
+  "image": {
+    "repository": "svc/local-aws",
+    "digest": "PLACEHOLDER-index-sha256-filled-by-scripts-image-build.sh",
+    "platforms": [
+      "linux/arm64"
+    ]
+  },
+  "run": {
+    "user": "10001:10001",
+    "readOnlyRoot": true,
+    "tmpfs": [
+      {
+        "path": "/tmp",
+        "sizeMiB": 64
+      }
+    ],
+    "ports": [
+      4566
+    ],
+    "extraArgs": []
+  },
+  "health": {
+    "kind": "http",
+    "port": 4566,
+    "path": "/_rovara/health",
+    "startTimeoutS": 30
+  },
+  "resources": {
+    "memMiB": 384,
+    "cpus": 1,
+    "pids": 512
+  },
+  "connect": {
+    "templates": {
+      "AWS_REGION": "{region}",
+      "AWS_DEFAULT_REGION": "{region}"
+    },
+    "defaultAliases": [
+      "aws"
+    ]
+  },
+  "reset": {
+    "kind": "http_reset"
+  },
+  "licence": "LicenseRef-Rovara AND MIT",
+  "sbomRef": "PLACEHOLDER-combined-sbom-sha256-filled-by-catalog-build",
+  "scan": {
+    "scannedAt": "PLACEHOLDER-filled-by-catalog-build",
+    "criticalOpen": 0,
+    "highOpen": "PLACEHOLDER-filled-by-catalog-build"
+  },
+  "editions": [
+    "public",
+    "enterprise"
+  ],
+  "emulator": {
+    "services": {
+      "supported": [
+        "s3",
+        "dynamodb",
+        "sqs",
+        "sns",
+        "sts",
+        "secretsmanager",
+        "ssm",
+        "kms",
+        "events"
+      ],
+      "functions": [
+        "lambda"
+      ],
+      "model_endpoint_front": [
+        "sagemaker-runtime"
+      ],
+      "available": [
+        "dynamodbstreams",
+        "kinesis",
+        "stepfunctions",
+        "apigateway",
+        "cognito-idp",
+        "logs"
+      ]
+    },
+    "iamEnforced": false,
+    "storage": "memory"
+  }
+}

@@ -1,0 +1,12 @@
+Rovara local AWS
+Copyright (c) 2026 Rovara
+
+Rovara local AWS is a modified, reduced version of an MIT-licensed local AWS emulator.
+
+Portions copyright (c) 2025 Floci and its contributors, licensed under the MIT licence. The
+copyright and permission notice of those portions is the file LICENSE, which is kept unchanged
+and ships with every build.
+
+Third-party software that is bundled in a build, with its licence, is listed in
+THIRD-PARTY-NOTICES.txt. The text of the Apache License 2.0, which several of those components
+and the Maven wrapper use, is in licenses/Apache-2.0.txt.
