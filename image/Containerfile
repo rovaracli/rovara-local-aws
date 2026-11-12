@@ -1,0 +1,92 @@
+# Rovara local AWS image (real-database prerequisite step 5; design test-services.md 5.3).
+#
+# Two stages, both pinned by digest (the tag in front of the digest is only for readers):
+#   builder  Mandrel 25 builder image. Runs scripts/build.sh native, the same native build as a developer's,
+#            for the platform the build runs on (build each platform natively; see scripts/image-build.sh).
+#   sbom     (export only) the CycloneDX list of the Java dependencies compiled into the binary, for the scan.
+#   final    distroless base-debian13. Why this base and not a static one: the native binary is linked
+#            dynamically against glibc, so a static/scratch base cannot run it. This base holds glibc, CA
+#            certificates and tzdata and nothing else: no shell, no package manager, no Docker client.
+#            Any other shared library the binary needs (for example libz) is found by ldd in the builder
+#            and copied to /usr/lib/rovara; the build fails if ldd reports a library it cannot find.
+#
+# Run contract (matches the catalog entry in image/catalog-entry.json):
+#   user 10001:10001 (numeric, no passwd entry needed), read-only root filesystem, the only writable path is /tmp
+#   (the worker mounts a tmpfs there), one port 4566, health GET /_rovara/health (no HEALTHCHECK instruction:
+#   the image has no client; the worker probes from outside).
+#   Run-time settings come from the environment and are never baked in. With a control token set the emulator
+#   refuses to start unless all of these are set (README "Run contract"):
+#     ROVARA_AWS_CONTROL_TOKEN                          random per run; without it every /_rovara/* path except health answers 403
+#     QUARKUS_HTTP_HOST                                 the run's own IP literal (the default 127.0.0.1 is unreachable from outside; a wildcard is refused)
+#     ROVARA_AWS_BASE_URL                               http://aws:4566
+#     ROVARA_AWS_AUTH_PRESIGN_SECRET                    random per run, 16+ characters
+#     ROVARA_AWS_SERVICES_SQS_RECEIPT_HANDLE_SECRET     random per run, 16+ characters
+#   DOCKER_HOST is not set and nothing in the image can talk to a container engine.
+
+FROM quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:25.0.5.0-Final-java25@sha256:4af907423955d43beb791ee247516e13128fc880b4e58f6a66171a90f850e1fb AS builder
+# Heap cap for the native-image builder JVM (-J-Xmx), passed to scripts/build.sh as NATIVE_IMAGE_XMX. 5g fits a
+# 7.9 GB GitHub arm64 runner (the rest is for Maven, BuildKit and the OS); raise it on a bigger builder.
+ARG NATIVE_IMAGE_XMX=5g
+USER quarkus
+WORKDIR /code
+COPY --chown=quarkus:quarkus . /code
+# The same native build as `scripts/build.sh native`; it also stages the licence files in dist/native.
+# -H:-AOTSingleCallsiteInline: Quarkus turns single-callsite inlining ON for Mandrel only (GraalVM CE has no such
+# option, and the speed gate was measured with CE, without it). On aarch64 it inlines the per-service handlers into the
+# REST invoker of AwsJson11Controller until that one method is larger than 1 MiB, and the string-switch jump table
+# (an ADR, 21-bit signed range = +-1 MiB) no longer reaches its slow path: "Immediate has to be 21bit signed number".
+RUN NATIVE_IMAGE_XMX="${NATIVE_IMAGE_XMX}" NATIVE_BUILD_ARGS="-H:-AOTSingleCallsiteInline" scripts/build.sh native
+# The Maven runtime dependency tree as CycloneDX (plugin version pinned), for the scan of the Java libraries inside the binary.
+RUN ./mvnw -B -q org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeBom \
+      -DoutputFormat=json -DoutputName=bom -DoutputDirectory=/code/out/sbom \
+      -DincludeCompileScope=true -DincludeRuntimeScope=true -DincludeProvidedScope=false -DincludeTestScope=false -DincludeSystemScope=false
+# Collect the shared libraries the binary needs beyond the base's glibc. Fail closed on a missing one.
+RUN set -eu; \
+    mkdir -p /code/out/lib; \
+    ldd dist/native/rovara-local-aws > /code/out/ldd.txt 2>&1 || true; \
+    cat /code/out/ldd.txt; \
+    if grep -q 'not found' /code/out/ldd.txt; then echo 'a needed library is missing in the builder' >&2; exit 1; fi; \
+    awk '/=>/ { print $3 }' /code/out/ldd.txt \
+      | grep -Ev '/(libc|libm|libdl|libpthread|librt|libresolv|libutil)\.so\.[0-9]+$' \
+      | while read -r lib; do cp -L "$lib" /code/out/lib/; done; \
+    chmod 0755 /code/out/lib; \
+    chmod 0644 /code/out/lib/* 2>/dev/null || true
+
+# The Java libraries are compiled INTO the native binary, so a scan of the final image cannot see them. The build
+# writes a CycloneDX list of the runtime dependency tree (the same Maven resolution the native build used); the
+# `sbom` stage exports it (docker buildx build --target sbom --output type=local,dest=<dir>) for the scan.
+FROM scratch AS sbom
+COPY --from=builder /code/out/sbom/bom.json /java-dependencies.cdx.json
+
+FROM gcr.io/distroless/base-debian13:nonroot@sha256:9039a88709bcc2bacf5a2faac331d65dd6840f763f225ad9594cc0c67bcd0fba AS final
+ARG VERSION=dev
+ARG REVISION=unknown
+ARG SOURCE_URL=https://github.com/PrepLabsAI/rovara-local-aws
+LABEL org.opencontainers.image.title="Rovara local AWS" \
+      org.opencontainers.image.description="In-memory AWS API emulator for Rovara test environments" \
+      org.opencontainers.image.vendor="Rovara" \
+      org.opencontainers.image.source="${SOURCE_URL}" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.licenses="LicenseRef-Rovara AND MIT" \
+      io.rovara.service="local-aws" \
+      io.rovara.licence-dir="/usr/share/licenses/rovara-local-aws" \
+      io.rovara.run.user="10001:10001" \
+      io.rovara.run.port="4566" \
+      io.rovara.run.health-path="/_rovara/health" \
+      io.rovara.run.writable-path="/tmp"
+COPY --from=builder --chmod=0555 /code/dist/native/rovara-local-aws /usr/local/bin/rovara-local-aws
+COPY --from=builder /code/out/lib/ /usr/lib/rovara/
+# The licence files travel with every copy of the software.
+COPY LICENSE NOTICE THIRD-PARTY-NOTICES.txt /usr/share/licenses/rovara-local-aws/
+COPY licenses/ /usr/share/licenses/rovara-local-aws/licenses/
+ENV LD_LIBRARY_PATH=/usr/lib/rovara \
+    HOME=/tmp
+WORKDIR /tmp
+USER 10001:10001
+EXPOSE 4566
+# -Xmx192m: the native image takes its runtime heap options on the command line (Substrate VM parses -Xmx/-Xms/-XX: and removes them before main). Without it the default
+# maximum heap is a share (about 80%) of the container's memory limit; the catalog gives this container 384 MiB, of which up to 64 MiB is the /tmp tmpfs and ~85 MiB is the
+# binary's file-backed pages, so an uncapped heap could be OOM-killed before it collected. 192 MiB is about five times the measured private peak (39 MiB) and above the gate's
+# 128 MiB target. scripts/image-check.sh requires the flag; the workflow's speed gate runs the binary with it. Re-measure inside a 384 MiB container on staging.
+ENTRYPOINT ["/usr/local/bin/rovara-local-aws", "-Xmx192m"]

@@ -1,0 +1,71 @@
+{
+ "label": "jvm",
+ "cmd": "java -XX:+UseSerialGC -Xshare:auto -XX:TieredStopAtLevel=1 -Xss512k -jar dist/jvm/quarkus-app/quarkus-run.jar",
+ "runs": [
+  {
+   "start_s": 0.9502979160752147,
+   "idle_mib": 240.4375,
+   "peak_mib": 329.109375,
+   "median_ms": 5.75,
+   "pass": 52,
+   "total": 54,
+   "failed_calls": [
+    "assume_role"
+   ],
+   "matrix_stdout_tail": [
+    "[jvm] sagemaker-runtime create_endpoint_without_image_then_invoke PASS 27.0ms endpoint status=InService; invoke error ModelError: An error occurred (ModelError) when ca",
+    "[jvm] DONE pass=52 total=54"
+   ]
+  },
+  {
+   "start_s": 0.8438079169718549,
+   "idle_mib": 239.125,
+   "peak_mib": 330.90625,
+   "median_ms": 5.25,
+   "pass": 52,
+   "total": 54,
+   "failed_calls": [
+    "assume_role"
+   ],
+   "matrix_stdout_tail": [
+    "[jvm] sagemaker-runtime create_endpoint_without_image_then_invoke PASS 28.0ms endpoint status=InService; invoke error ModelError: An error occurred (ModelError) when ca",
+    "[jvm] DONE pass=52 total=54"
+   ]
+  },
+  {
+   "start_s": 0.783266625017859,
+   "idle_mib": 240.953125,
+   "peak_mib": 277.59375,
+   "median_ms": 7.1,
+   "pass": 52,
+   "total": 54,
+   "failed_calls": [
+    "assume_role"
+   ],
+   "matrix_stdout_tail": [
+    "[jvm] sagemaker-runtime create_endpoint_without_image_then_invoke PASS 29.8ms endpoint status=InService; invoke error ModelError: An error occurred (ModelError) when ca",
+    "[jvm] DONE pass=52 total=54"
+   ]
+  }
+ ],
+ "targets": {
+  "start_s": 0.5,
+  "idle_mib": 64.0,
+  "peak_mib": 128.0,
+  "median_ms": 3.0,
+  "pass_min": 52
+ },
+ "start_s": 0.8438079169718549,
+ "idle_mib": 240.4375,
+ "peak_mib": 330.90625,
+ "median_ms": 5.75,
+ "pass": 52,
+ "total": 54,
+ "verdict": {
+  "start_s": "MISS",
+  "idle_mib": "MISS",
+  "peak_mib": "MISS",
+  "median_ms": "MISS",
+  "pass": "pass"
+ }
+}
