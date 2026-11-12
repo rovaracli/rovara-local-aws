@@ -1,0 +1,131 @@
+{
+  "_notes": {
+    "readme": "Draft, for the Rovara-cloud catalog (not committed there from here). '_notes' is documentation for reviewers and is NOT part of the catalog schema (entries are strict): it must not be copied into catalog.json. Same shape as image/catalog-entry.json (the frozen fork's entry, local-aws@r1); only the fields below differ.",
+    "whatChanged": [
+      "id/version r1 -> r2: the engine is AWS Emulator behind the Rovara front (decision 105). When r2 is published, r1 stops being the default.",
+      "resources.memMiB 384 -> 512 (decision 106). Measured gate: private memory (RssAnon) at most 256 MiB at peak, front and engine together; the engine alone measured 171 MiB idle and 214 MiB peak. 512 leaves room for the 64 MiB /tmp tmpfs (counted against the container) and the engine's file-backed pages.",
+      "health.startTimeoutS stays 30. Measured start to first answer is well under 0.5 s (decision 106 gate); 30 s is the worker's wait ceiling, not a target.",
+      "licence: the engine is CC0-1.0 except its vendor/ directory (Apache-2.0); AWS ships its third-party notices as THIRD_PARTY_LICENSES inside the image. 'LicenseRef-Rovara AND MIT' no longer describes the image.",
+      "emulator.protocols: the engine speaks the JSON protocol for SQS only (no Query protocol). Code on an SQS client that uses the Query protocol (boto3 before about 1.31.x, AWS SDK for Java v1, older Ruby and PHP clients) gets 'missing required header x-amz-target'. The other differences from the fork are in _notes.differences."
+    ],
+    "runEnv": {
+      "ROVARA_AWS_CONTROL_TOKEN": "random per run; the run's own code never receives it. Without it every /_rovara/* path except /_rovara/health answers 403. Never the same value as either signing secret.",
+      "QUARKUS_HTTP_HOST": "the run IP literal of this container on the services network (for example 172.30.4.16); a wildcard such as 0.0.0.0 is refused.",
+      "ROVARA_AWS_BASE_URL": "http://aws:4566 (the run alias). With a token set the front refuses to start unless this is set and is not the development default.",
+      "ROVARA_AWS_AUTH_PRESIGN_SECRET": "random per run, 16 or more characters; the front refuses to start with a token set and this missing or default.",
+      "ROVARA_AWS_SERVICES_SQS_RECEIPT_HANDLE_SECRET": "random per run, 16 or more characters; same rule. (Kept for the run contract; AWS Emulator signs its own receipt handles.)",
+      "ROVARA_AWS_DEFAULT_REGION": "the run's region (the seed document's default).",
+      "ROVARA_AWS_HOSTNAME": "the run alias (aws); used to read S3 virtual-host style requests (<bucket>.aws).",
+      "ROVARA_AWS_SERVICES_<X>_ENABLED": "false for every service outside the plan (the Cloud worker's LOCAL_AWS_SERVICE_KEYS); the front refuses those requests with ServiceNotAvailableException and counts them in the ledger."
+    },
+    "neverSet": [
+      "ROVARA_AWS_DEV_OPEN_CONTROL",
+      "DOCKER_HOST"
+    ],
+    "health": "GET /_rovara/health is open (no token) and answers 200 only while the engine child answers its own health route; a dead or resetting engine is 503.",
+    "reset": "POST /_rovara/reset restarts the engine child (state is in memory only). Sub-second. A reset of one service (POST /_rovara/reset/<service>) answers 501: the Cloud worker only calls the full reset.",
+    "platforms": "linux/arm64 only (Rovara's workers are Graviton). The engine package is the arm64 deb at one pinned version (image/Containerfile.engine); the image build writes the platforms it built into the filled entry.",
+    "differences": [
+      "SQS: JSON protocol only (see whatChanged). The fork served both.",
+      "Unsupported operations: the engine answers HTTP 501 {__type: NotImplemented}; the front counts it as unsupported. The fork's own removals (for example SSM Run Command, which the fork refused on purpose) are served by the engine as AWS serves them.",
+      "Signature validation, on-demand jobs (/_rovara/tick, /_rovara/tick/{job}) and per-service reset exist only in the fork. Ticks and per-service reset answer 501; every request is accepted with any key.",
+      "SNS to SQS: the engine delivers only when the queue policy allows sns.amazonaws.com, as AWS does (the fork delivered regardless). The envelope has no Signature or SigningCertURL; UnsubscribeURL is rewritten to the run's base URL.",
+      "STS AssumeRole: the engine checks the role's trust policy as AWS does (the fork accepted any caller).",
+      "DynamoDB tables take about 3 s to become ACTIVE (the fork's were ACTIVE at once). The seed waits for ACTIVE before it reports a table done.",
+      "Services outside the fork's catalog (EC2, CloudWatch metrics, Glue and the engine's many others) are refused by the front with 404 UnknownOperationException and counted as unsupported in the ledger.",
+      "Lambda: no function runner is attached; code in functions is whatever the engine runs in-process.",
+      "Image size: the engine binary is about 888 MB unpacked (the package is 151 MB)."
+    ]
+  },
+  "id": "local-aws@r2",
+  "family": "local-aws",
+  "backing": "emulated",
+  "version": "r2",
+  "status": "default",
+  "image": {
+    "repository": "svc/local-aws",
+    "digest": "PLACEHOLDER-index-sha256-filled-by-the-image-build",
+    "platforms": [
+      "linux/arm64"
+    ]
+  },
+  "run": {
+    "user": "10001:10001",
+    "readOnlyRoot": true,
+    "tmpfs": [
+      {
+        "path": "/tmp",
+        "sizeMiB": 64
+      }
+    ],
+    "ports": [
+      4566
+    ],
+    "extraArgs": []
+  },
+  "health": {
+    "kind": "http",
+    "port": 4566,
+    "path": "/_rovara/health",
+    "startTimeoutS": 30
+  },
+  "resources": {
+    "memMiB": 512,
+    "cpus": 1,
+    "pids": 512
+  },
+  "connect": {
+    "templates": {
+      "AWS_REGION": "{region}",
+      "AWS_DEFAULT_REGION": "{region}"
+    },
+    "defaultAliases": [
+      "aws"
+    ]
+  },
+  "reset": {
+    "kind": "http_reset"
+  },
+  "licence": "LicenseRef-Rovara AND CC0-1.0 AND Apache-2.0 AND BSD-3-Clause",
+  "sbomRef": "PLACEHOLDER-combined-sbom-sha256-filled-by-catalog-build",
+  "scan": {
+    "scannedAt": "PLACEHOLDER-filled-by-catalog-build",
+    "criticalOpen": 0,
+    "highOpen": "PLACEHOLDER-filled-by-catalog-build"
+  },
+  "editions": [
+    "public",
+    "enterprise"
+  ],
+  "emulator": {
+    "services": {
+      "supported": [
+        "s3",
+        "dynamodb",
+        "sqs",
+        "sns",
+        "sts",
+        "secretsmanager",
+        "ssm",
+        "kms",
+        "events"
+      ],
+      "functions": [
+        "lambda"
+      ],
+      "model_endpoint_front": [
+        "sagemaker-runtime"
+      ],
+      "available": [
+        "dynamodbstreams",
+        "kinesis",
+        "stepfunctions",
+        "apigateway",
+        "cognito-idp",
+        "logs"
+      ]
+    },
+    "iamEnforced": false,
+    "storage": "memory"
+  }
+}
