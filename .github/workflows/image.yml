@@ -1,0 +1,569 @@
+# Builds, scans, makes an SBOM for and signs the Rovara local AWS catalog image.
+#
+# MANUAL ONLY (owner rule: CI cost). The one trigger is workflow_dispatch: no push, no pull request, no schedule.
+# Nothing here dispatches it. The controller or the owner starts it for a release candidate, after the local gates
+# (scripts/image-check.sh, ./mvnw test, compat/run.sh) passed on that commit.
+#
+# What it does
+#   plan      turns the `platforms` input into the build matrix: linux/arm64 (default; Rovara's workers are Graviton),
+#             linux/amd64, or both. Everything below works with one platform; a one-platform OCI index is a normal result.
+#   build     one native build per platform on a native runner (no emulation), as a matrix. arm64 runs on the GitHub-hosted
+#             `ubuntu-24.04-arm` runner (probed: aarch64, 2 vCPU, 7.9 GB RAM) unless the repository variable ARM64_RUNNER
+#             names another runner; amd64 on `ubuntu-24.04`. The native-image builder heap is capped at 5g
+#             (NATIVE_IMAGE_XMX, a Containerfile build arg) and a 4 GB swap file is added: the runner is small.
+#             Each build also exports the CycloneDX list of the Java libraries compiled into the native binary.
+#   measure   per platform, the speed gate on the shipped binary (taken out of the layout with tar, run on the runner):
+#             start-up, idle and peak memory and the matrix fail the run; the median call is a warning. Artifact
+#             perf-<arch>, 14 days.
+#   assemble  merges the layouts into one OCI index of exactly the platforms built, then
+#             - SBOM per platform of the image (syft, SPDX JSON),
+#             - scan per platform of the image (grype) AND of the Java dependency list (grype on the CycloneDX file,
+#               because the libraries are inside the binary and the image scan cannot see them); any critical finding
+#               fails the run. No signing and no id-token permission here. The run summary says whether the result is
+#               signed: with the `sign` input false (the default) it says "UNSIGNED: not for the catalog".
+#   sign      runs only when the `sign` input is true. It is the only job with `id-token: write`. It assumes an AWS role by
+#             OIDC (role ARN from the repository variable IMAGE_SIGNING_ROLE_ARN) and signs one statement with cosign. The
+#             statement holds the index digest, each platform's manifest digest, the sources entry and the sha256 of every
+#             SBOM and scan file.
+# It never pushes the image and holds no registry credential. Before any push the operator verifies statement.sig
+# (cosign verify-blob) and re-hashes the files it names; the push commands are in build-info.json. The operator then
+# runs scripts/catalog-build.ts, which mirrors, takes its own SBOM and scan per platform, and signs the catalog with
+# the release KMS key.
+#
+# The unsigned image layout, SBOMs and scans are kept for 1 day only (the `image-result` artifact), signed or not. The
+# 14-day `image-release` artifact (sign job only) holds only the signed statement, statement.sig, the SBOMs, scans and
+# digest files: never the image layout (`oci/`).
+#
+# Signing: NOT keyless. Keyless signing writes the image's identity to the public Sigstore log, which a private
+# image should not do. With `sign` true the sign job needs two repository variables, IMAGE_SIGNING_ROLE_ARN (the AWS
+# role to assume through OIDC) and IMAGE_SIGNING_KEY (a cosign key reference such as awskms:///<key arn>), and FAILS
+# CLOSED, before any AWS call, when either is empty: no signer, no signed artifact, red run. With `sign` false there is
+# no signing at all and the result must not go into the catalog.
+#
+# FOUR IMAGES, ONE WORKFLOW. The `image` input picks what is built (the workflow keeps its name, `image`, and its single
+# trigger, workflow_dispatch):
+#   fork    (default) the native build of the Java fork, exactly as above.
+#   engine  image/Containerfile.engine: AWS Emulator (signed arm64 package at one pinned version) behind the Rovara front
+#           (Go, front/). linux/arm64 only. Same artifact layout (`image-result`: oci/, index.digest, platforms.json,
+#           sources-entry.json, ..., SBOM and scans) and the same `index digest:` log line. Differences:
+#           - static gates are scripts/image-check-engine.sh (the Containerfile also vets and tests the front);
+#           - no swap and no native-image heap (nothing is compiled natively), and no Java dependency list: the catalog
+#             source names the generic library pair instead (`libraryScan` + `librarySbom`). The image SBOM and scan read the Go front (syft/grype read
+#             Go build info); the Rust crates inside the engine binary are scanned from the crate list AWS ships in the
+#             package. scripts/engine-library-sbom.sh merges them into syft's image SBOM as one SPDX file
+#             (sbom-arm64/sbom.spdx.json) and grype scans exactly that file (scan-library-arm64.json): the generic
+#             library-scan pair Rovara Cloud's catalog-build reads (`libraryScan` + `librarySbom`). The image scan and the
+#             library scan both fail the run on a critical finding; the reports are uploaded in `image-result`
+#             (sbom-arm64.spdx.json, scan-arm64.json, sbom-arm64/sbom.spdx.json, scan-library-arm64.json);
+#           - the measure job runs front/tools/measure_front.py on the binaries taken out of the layout (start-up, private
+#             memory of front plus engine, the matrix; decision 106 gates; the median call is a warning, as for the fork).
+#   function-agent  runner/agent/Containerfile: the function runner's static in-sandbox agent (FROM scratch, one file, /agent). linux/arm64 only.
+#   model-stand-in  model-stand-in/Containerfile: the fake SageMaker inference container (Go, distroless static). linux/arm64 or linux/amd64 or both.
+#           Both small images (catalog revision 7, 0.5.19) keep the engine's artifact layout and its `index digest:` log line, with these differences:
+#           - static gates are scripts/image-check-go.sh (the Containerfile also vets and tests the program);
+#           - no measure job and no library pair: the Go binary is read by syft and grype in the image SBOM and scan (any critical finding fails
+#             the run); both images are repacked into the catalog by catalog-repack, which has its own gates; no catalog-entry.json is written
+#             (Rovara Cloud holds both entries).
+#         One run builds one image: a run's log names exactly one `index digest:` (scripts/verify-local-aws-run.sh).
+#
+# Every action is pinned by commit sha (the tag is in the comment).
+name: image
+
+on:
+  workflow_dispatch:
+    inputs:
+      registry_ref:
+        description: "Where the operator will push the index: host/path, no tag (for example <account>.dkr.ecr.<region>.amazonaws.com/rovara-catalog/<env>/svc/local-aws)"
+        required: true
+        type: string
+      version:
+        description: "Catalog version label"
+        required: false
+        default: "r1"
+        type: string
+      platforms:
+        description: "Which platform(s) to build. The first image is linux/arm64 only; linux/amd64 only if a customer needs it."
+        required: false
+        default: "linux/arm64"
+        type: choice
+        options:
+          - linux/arm64
+          - linux/amd64
+          - both
+      image:
+        description: "Which image: fork (the Java fork's native image, as before), engine (image/Containerfile.engine, AWS Emulator behind the Rovara front; linux/arm64 only), function-agent (runner/agent; linux/arm64 only) or model-stand-in (model-stand-in/)"
+        required: false
+        default: "fork"
+        type: choice
+        options:
+          - fork
+          - engine
+          - function-agent
+          - model-stand-in
+      sign:
+        description: "Run the sign job (needs IMAGE_SIGNING_ROLE_ARN and IMAGE_SIGNING_KEY). False: the result is UNSIGNED and not for the catalog."
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: plan (platform matrix)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Build the matrix from the platforms input
+        id: matrix
+        env:
+          PLATFORMS: ${{ inputs.platforms }}
+          IMAGE: ${{ inputs.image }}
+          ARM64_RUNNER: ${{ vars.ARM64_RUNNER }}
+        run: |
+          set -euo pipefail
+          arm="${ARM64_RUNNER:-ubuntu-24.04-arm}"
+          if [ "$IMAGE" = engine ] && [ "$PLATFORMS" != linux/arm64 ]; then
+            echo "the engine image is linux/arm64 only (AWS's arm64 package); set platforms to linux/arm64" >&2; exit 1
+          fi
+          if [ "$IMAGE" = function-agent ] && [ "$PLATFORMS" != linux/arm64 ]; then
+            echo "the function agent image is linux/arm64 only (Rovara's workers are Graviton); set platforms to linux/arm64" >&2; exit 1
+          fi
+          case "$PLATFORMS" in
+            linux/arm64) list='["arm64"]' ;;
+            linux/amd64) list='["amd64"]' ;;
+            both)        list='["arm64","amd64"]' ;;
+            *) echo "unknown platforms input: $PLATFORMS" >&2; exit 1 ;;
+          esac
+          matrix="$(jq -cn --argjson list "$list" --arg arm "$arm" '{include: [$list[] | {
+            platform: ("linux/" + .), arch: ., timeout: 90,
+            runner: (if . == "arm64" then $arm else "ubuntu-24.04" end)}]}')"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "$matrix"
+
+  build:
+    name: build ${{ matrix.platform }}
+    needs: plan
+    strategy:
+      fail-fast: true
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.timeout }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Static image gates
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: |
+          set -euo pipefail
+          case "$IMAGE" in
+            engine) scripts/image-check-engine.sh ;;
+            function-agent|model-stand-in) scripts/image-check-go.sh "$IMAGE" ;;
+            *) scripts/image-check.sh ;;
+          esac
+      - name: Add swap for the native build (small runner)
+        if: ${{ inputs.image == 'fork' }}
+        run: |
+          set -euo pipefail
+          free -m
+          sudo fallocate -l 4G /rovara-swap
+          sudo chmod 600 /rovara-swap
+          sudo mkswap /rovara-swap
+          sudo swapon /rovara-swap
+          free -m
+          df -h /
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build one platform
+        env:
+          REGISTRY_REF: ${{ inputs.registry_ref }}
+          IMAGE_VERSION: ${{ inputs.version }}
+          NATIVE_IMAGE_XMX: 5g
+          IMAGE: ${{ inputs.image }}
+        run: |
+          set -euo pipefail
+          if [ "$IMAGE" = engine ]; then
+            scripts/image-build.sh --engine --registry-ref "$REGISTRY_REF" --version "$IMAGE_VERSION" --platform "${{ matrix.platform }}" --out "$RUNNER_TEMP/out"
+          elif [ "$IMAGE" = function-agent ] || [ "$IMAGE" = model-stand-in ]; then
+            scripts/image-build.sh --target "$IMAGE" --registry-ref "$REGISTRY_REF" --version "$IMAGE_VERSION" --platform "${{ matrix.platform }}" --out "$RUNNER_TEMP/out"
+          else
+            scripts/image-build.sh --registry-ref "$REGISTRY_REF" --version "$IMAGE_VERSION" --platform "${{ matrix.platform }}" --out "$RUNNER_TEMP/out" --native-xmx "$NATIVE_IMAGE_XMX"
+          fi
+      - name: Pack the layout (and the Java dependency list, fork only)
+        run: |
+          set -euo pipefail
+          arch="${PLATFORM#linux/}"
+          if [ "$IMAGE" != fork ]; then
+            tar -C "$RUNNER_TEMP/out" -cf "$RUNNER_TEMP/layout.tar" "layout-$arch"
+          else
+            tar -C "$RUNNER_TEMP/out" -cf "$RUNNER_TEMP/layout.tar" "layout-$arch" "sbom-$arch"
+          fi
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          IMAGE: ${{ inputs.image }}
+      - name: Keep the layout
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: layout-${{ matrix.arch }}
+          path: ${{ runner.temp }}/layout.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  measure:
+    # The speed gate on the binary that ships: it is taken out of the image layout with tar (no container engine) and
+    # run on the runner. Fails the run on start-up (0.5 s), idle (64 MiB) and peak (128 MiB) memory and on the matrix
+    # (52 of 54 calls). The median call (3 ms) is a WARNING only (owner, 2026-11-03). Every platform runs on a native
+    # runner, so the numbers are real (there is no QEMU path).
+    name: measure ${{ matrix.platform }}
+    needs: [plan, build]
+    if: ${{ inputs.image == 'fork' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Get the layout
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: layout-${{ matrix.arch }}
+          path: ${{ runner.temp }}/in
+      - name: Take the binary out of the image layout
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out" "$RUNNER_TEMP/bin"
+          tar -C "$RUNNER_TEMP/out" -xf "$RUNNER_TEMP/in/layout.tar"
+          scripts/image-extract-binary.sh "$RUNNER_TEMP/out/layout-$ARCH" "$RUNNER_TEMP/bin"
+      - name: Python with boto3 (the matrix client)
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --disable-pip-version-check --quiet boto3==1.43.118
+      - name: Speed gate (scripts/perf-gate.sh native)
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          export ROVARA_PERF_PYTHON="$RUNNER_TEMP/venv/bin/python"
+          # the same heap cap the image's ENTRYPOINT passes (image/Containerfile), so the gate measures what ships
+          export ROVARA_PERF_CMD="$RUNNER_TEMP/bin/rovara-local-aws -Xmx192m"
+          export LD_LIBRARY_PATH="$RUNNER_TEMP/bin/lib"
+          export ROVARA_PERF_OUT="perf/results/image-$ARCH.json"
+          export ROVARA_PERF_RUNS=3
+          scripts/perf-gate.sh native
+      - name: Keep the measurements
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: perf-${{ matrix.arch }}
+          path: perf/results/image-${{ matrix.arch }}.json
+          retention-days: 14
+          if-no-files-found: warn
+
+  measure-engine:
+    # The engine image's gates (decision 106), on the binaries that ship: the front and the engine are taken out of the image
+    # layout with tar (no container engine) and run together on the native arm64 runner, with the worker's run contract
+    # (a token, a run address, the secrets). Start-up to healthy at most 0.5 s and the 54-call matrix (at least 51) fail the
+    # run, and so does private memory of the front and engine together over 256 MiB. The median call (3 ms) is a WARNING,
+    # as for the fork. The measurement is uploaded as perf-engine-arm64.
+    name: measure engine ${{ matrix.platform }}
+    needs: [plan, build]
+    if: ${{ inputs.image == 'engine' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Get the layout
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: layout-${{ matrix.arch }}
+          path: ${{ runner.temp }}/in
+      - name: Take the front and the engine out of the image layout
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out" "$RUNNER_TEMP/bin"
+          tar -C "$RUNNER_TEMP/out" -xf "$RUNNER_TEMP/in/layout.tar"
+          scripts/image-extract-binary.sh --engine "$RUNNER_TEMP/out/layout-$ARCH" "$RUNNER_TEMP/bin"
+      - name: Python with boto3 (the matrix client)
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --disable-pip-version-check --quiet boto3==1.43.118
+      - name: Measure (front plus engine, the matrix)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/m" perf/results
+          export PY="$RUNNER_TEMP/venv/bin/python"
+          # secrets of this run only: random, never printed
+          TOKEN="tk$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' | head -c 24)"
+          PRESIGN="ps$(head -c 20 /dev/urandom | od -An -tx1 | tr -d ' \n' | head -c 20)"
+          RECEIPT="rc$(head -c 20 /dev/urandom | od -An -tx1 | tr -d ' \n' | head -c 20)"
+          date +%s.%N > "$RUNNER_TEMP/m/spawned-at"
+          env -i HOME="$RUNNER_TEMP/m/home" QUARKUS_HTTP_HOST=127.0.0.1 QUARKUS_HTTP_PORT=4566 ROVARA_AWS_BASE_URL=http://aws:4566 \
+            ROVARA_AWS_AUTH_PRESIGN_SECRET="$PRESIGN" ROVARA_AWS_SERVICES_SQS_RECEIPT_HANDLE_SECRET="$RECEIPT" ROVARA_AWS_CONTROL_TOKEN="$TOKEN" \
+            ROVARA_AWS_ENGINE_BIN="$RUNNER_TEMP/bin/aws-emulator" ROVARA_AWS_FRONT_WORKDIR="$RUNNER_TEMP/m" \
+            "$RUNNER_TEMP/bin/rovara-aws-front" > "$RUNNER_TEMP/m/front.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/m/front.pid"
+          set +e
+          "$PY" -I front/tools/measure_front.py --pidfile "$RUNNER_TEMP/m/front.pid" --spawned-at "$(cat "$RUNNER_TEMP/m/spawned-at")" \
+            --endpoint http://127.0.0.1:4566 --python "$PY" --matrix perf/matrix.py --median-warn --out perf/results/engine-${{ matrix.arch }}.json
+          rc=$?
+          kill "$(cat "$RUNNER_TEMP/m/front.pid")" 2>/dev/null; wait 2>/dev/null
+          exit $rc
+      - name: Keep the measurements
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: perf-engine-${{ matrix.arch }}
+          path: perf/results/engine-${{ matrix.arch }}.json
+          retention-days: 14
+          if-no-files-found: warn
+
+  assemble:
+    name: assemble, scan, SBOM
+    needs: [plan, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Get the layouts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: layout-*
+          path: ${{ runner.temp }}/layouts
+      - name: Unpack
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out"
+          # download-artifact puts a single matching artifact in the path itself and several in one folder each
+          found=0
+          while IFS= read -r t; do tar -C "$RUNNER_TEMP/out" -xf "$t"; found=1; done < <(find "$RUNNER_TEMP/layouts" -name layout.tar)
+          [ "$found" = 1 ] || { echo "no layout.tar was downloaded" >&2; find "$RUNNER_TEMP/layouts" >&2; exit 1; }
+          ls "$RUNNER_TEMP/out"
+      - name: Merge into one index (the platforms built)
+        env:
+          REGISTRY_REF: ${{ inputs.registry_ref }}
+          IMAGE_VERSION: ${{ inputs.version }}
+          IMAGE: ${{ inputs.image }}
+        run: |
+          set -euo pipefail
+          if [ "$IMAGE" = engine ]; then
+            scripts/image-build.sh --engine --registry-ref "$REGISTRY_REF" --version "$IMAGE_VERSION" --merge-only --out "$RUNNER_TEMP/out"
+          elif [ "$IMAGE" = function-agent ] || [ "$IMAGE" = model-stand-in ]; then
+            scripts/image-build.sh --target "$IMAGE" --registry-ref "$REGISTRY_REF" --version "$IMAGE_VERSION" --merge-only --out "$RUNNER_TEMP/out"
+          else
+            scripts/image-build.sh --registry-ref "$REGISTRY_REF" --version "$IMAGE_VERSION" --merge-only --out "$RUNNER_TEMP/out"
+          fi
+      - name: Install syft
+        id: syft
+        uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+      - name: Install grype
+        id: grype
+        uses: anchore/scan-action/download-grype@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+      - name: SBOM per platform
+        env:
+          SYFT: ${{ steps.syft.outputs.cmd }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/out"
+          for p in $(jq -r 'keys[]' platforms.json); do
+            "$SYFT" "oci-dir:oci" --platform "$p" -o "spdx-json=sbom-${p#linux/}.spdx.json"
+          done
+      - name: Scan the image per platform (zero critical)
+        env:
+          GRYPE: ${{ steps.grype.outputs.cmd }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/out"
+          for p in $(jq -r 'keys[]' platforms.json); do
+            "$GRYPE" "oci-dir:oci" --platform "$p" --fail-on critical -o json --file "scan-${p#linux/}.json"
+            echo "$p image: no critical finding"
+          done
+      - name: Engine only. One SBOM for the libraries inside the image (syft's image SBOM plus the engine's Rust crates)
+        if: ${{ inputs.image == 'engine' }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/out"
+          for p in $(jq -r 'keys[]' "$out/platforms.json"); do
+            a="${p#linux/}"
+            mkdir -p "$RUNNER_TEMP/eng-$a" "$out/sbom-$a"
+            # syft reads the Go front from its build info but cannot read the Rust crates inside the engine binary; AWS lists them,
+            # with versions, in the THIRD_PARTY_LICENSES it ships, which is taken out of the image's layers here
+            scripts/image-extract-binary.sh --engine "$out/layout-$a" "$RUNNER_TEMP/eng-$a"
+            scripts/engine-library-sbom.sh "$out/sbom-$a.spdx.json" "$RUNNER_TEMP/eng-$a/THIRD_PARTY_LICENSES" "$out/sbom-$a/sbom.spdx.json"
+          done
+      - name: Engine only. Scan the libraries inside the image, from exactly that SBOM (zero critical)
+        if: ${{ inputs.image == 'engine' }}
+        env:
+          GRYPE: ${{ steps.grype.outputs.cmd }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/out"
+          for p in $(jq -r 'keys[]' platforms.json); do
+            a="${p#linux/}"
+            # the catalog's generic library pair: sbom-<arch>/sbom.spdx.json and the grype report over that very file
+            "$GRYPE" "sbom:sbom-$a/sbom.spdx.json" --fail-on critical -o json --file "scan-library-$a.json"
+            echo "$a libraries: no critical finding"
+          done
+      - name: Scan the Java libraries inside the binary (zero critical)
+        if: ${{ inputs.image == 'fork' }}
+        env:
+          GRYPE: ${{ steps.grype.outputs.cmd }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/out"
+          for p in $(jq -r 'keys[]' platforms.json); do
+            a="${p#linux/}"
+            "$GRYPE" "sbom:sbom-$a/java-dependencies.cdx.json" --fail-on critical -o json --file "scan-java-$a.json"
+            echo "$a java dependencies: no critical finding"
+          done
+      - name: Run summary (signed or not)
+        env:
+          SIGN: ${{ inputs.sign }}
+          IMAGE: ${{ inputs.image }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Rovara local AWS image (${IMAGE})"
+            echo ""
+            echo "- index: \`$(cat "$RUNNER_TEMP/out/index.digest")\`"
+            echo "- platforms: $(jq -r 'keys | join(", ")' "$RUNNER_TEMP/out/platforms.json")"
+            if [ "$SIGN" = true ]; then
+              echo "- signing: requested; the sign job decides (it fails closed without a signer)"
+            else
+              echo "- **UNSIGNED: not for the catalog.** The \`sign\` input was false; nothing was signed and the layout is deleted after 1 day."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Also in the run LOG (the step summary is not in `gh run view --log`): Rovara's scripts/verify-local-aws-run.sh compares this line with the downloaded artifact's index.digest.
+          echo "index digest: $(cat "$RUNNER_TEMP/out/index.digest")"
+          if [ "$SIGN" != true ]; then echo "::warning::UNSIGNED: not for the catalog"; fi
+      - name: Keep the unsigned results for one day
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-result
+          path: |
+            ${{ runner.temp }}/out/oci
+            ${{ runner.temp }}/out/index.digest
+            ${{ runner.temp }}/out/platforms.json
+            ${{ runner.temp }}/out/sources-entry.json
+            ${{ runner.temp }}/out/repack-entry.json
+            ${{ runner.temp }}/out/catalog-entry.json
+            ${{ runner.temp }}/out/build-info.json
+            ${{ runner.temp }}/out/sbom-*.spdx.json
+            ${{ runner.temp }}/out/sbom-*/java-dependencies.cdx.json
+            ${{ runner.temp }}/out/sbom-*/sbom.spdx.json
+            ${{ runner.temp }}/out/scan-*.json
+          retention-days: 1
+          if-no-files-found: error
+
+  sign:
+    name: sign (OIDC, fails closed)
+    # `measure` runs for the fork image and `measure-engine` for the engine image; the other one is skipped, which must not
+    # skip the signing, while a failed one (or a failed assemble) still does.
+    needs: [assemble, measure, measure-engine]
+    if: ${{ inputs.sign && !failure() && !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Require a signer (before any AWS call)
+        env:
+          IMAGE_SIGNING_ROLE_ARN: ${{ vars.IMAGE_SIGNING_ROLE_ARN }}
+          IMAGE_SIGNING_KEY: ${{ vars.IMAGE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${IMAGE_SIGNING_ROLE_ARN:-}" ] || [ -z "${IMAGE_SIGNING_KEY:-}" ]; then
+            echo "No signer configured: set the repository variables IMAGE_SIGNING_ROLE_ARN (the AWS role to assume through OIDC) and IMAGE_SIGNING_KEY (a cosign key reference such as awskms:///<key arn>). Refusing to produce an unsigned release candidate." >&2
+            exit 1
+          fi
+      - name: Get the results
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image-result
+          path: ${{ runner.temp }}/out
+      - name: Assume the signing role (OIDC)
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.IMAGE_SIGNING_ROLE_ARN }}
+          aws-region: ${{ vars.IMAGE_SIGNING_REGION || 'us-west-2' }}
+          role-session-name: image-sign
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign the statement
+        env:
+          IMAGE_SIGNING_KEY: ${{ vars.IMAGE_SIGNING_KEY }}
+          IMAGE: ${{ inputs.image }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/out"
+          # One statement: the index digest, each platform's manifest digest, the sources entry and the sha256 of
+          # every SBOM and scan file (the image SBOMs, the Java dependency lists and all four scans).
+          # fork: the Java dependency list is required; engine: the library SBOM (image packages plus the Rust crates) is, the file
+          # the catalog's libraryScan report was made from
+          case "$IMAGE" in
+            engine) extra="$(ls sbom-*/sbom.spdx.json)" ;;
+            fork) extra="$(ls sbom-*/java-dependencies.cdx.json)" ;;
+            *) extra="" ;;
+          esac
+          files="$(ls sbom-*.spdx.json scan-*.json) $extra"
+          for f in $files; do printf '%s  %s\n' "$(sha256sum "$f" | awk '{print $1}')" "$f"; done | jq -R 'split("  ") | {(.[1]): .[0]}' | jq -s 'add' > evidence-digests.json
+          jq -S -n --slurpfile p platforms.json --slurpfile s sources-entry.json --slurpfile e evidence-digests.json --arg d "$(cat index.digest)" \
+            '{indexDigest:$d, platforms:$p[0], sources:$s[0], evidence:$e[0]}' > statement.json
+          cosign sign-blob --yes --key "$IMAGE_SIGNING_KEY" --tlog-upload=false --output-signature statement.sig statement.json
+      - name: Run summary (signed)
+        run: |
+          {
+            echo "## Rovara local AWS image: SIGNED"
+            echo ""
+            echo "- index: \`$(cat "$RUNNER_TEMP/out/index.digest")\`"
+            echo "- verify \`statement.sig\` (cosign verify-blob) before any push"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the signed evidence (no image layout)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-release
+          path: |
+            ${{ runner.temp }}/out/statement.json
+            ${{ runner.temp }}/out/statement.sig
+            ${{ runner.temp }}/out/evidence-digests.json
+            ${{ runner.temp }}/out/index.digest
+            ${{ runner.temp }}/out/platforms.json
+            ${{ runner.temp }}/out/sources-entry.json
+            ${{ runner.temp }}/out/repack-entry.json
+            ${{ runner.temp }}/out/catalog-entry.json
+            ${{ runner.temp }}/out/build-info.json
+            ${{ runner.temp }}/out/sbom-*.spdx.json
+            ${{ runner.temp }}/out/sbom-*/java-dependencies.cdx.json
+            ${{ runner.temp }}/out/sbom-*/sbom.spdx.json
+            ${{ runner.temp }}/out/scan-*.json
+          retention-days: 14
+          if-no-files-found: error

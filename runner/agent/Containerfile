@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1.7
+# The function runner's in-sandbox agent image (catalog entry function-agent@r1, 0.5.19, decision 176). Two stages, every base pinned by digest:
+#   build  the Go toolchain. Vets and tests the agent, then builds ONE static binary (no cgo, standard library only; go.mod has no requirements).
+#   final  FROM scratch: the binary at /agent (and the Go licence beside it). Nothing else: no shell, no libc, no package.
+#
+# What reads this image: the worker's boot (packages/worker/ec2/boot-stage2.sh, extract_function_agent) runs `docker create --entrypoint /agent <image>` and
+# `docker cp <container>:/agent`, checks that the file is a regular ELF of the host's machine type (aarch64 here) and at most 64 MiB, and installs it root-owned;
+# the sandbox then mounts it read-only. The image is never started. linux/arm64 only (Rovara's workers are Graviton; the catalog entry says so).
+#
+# Build context: THIS directory (runner/agent). `scripts/image-build.sh --target function-agent` passes it.
+#   docker buildx build --platform linux/arm64 -f Containerfile .
+# The Go floor is 1.26.9 (earlier standard libraries carry GO-2026-6612, a critical finding in the image scan); scripts/image-check-go.sh holds it.
+FROM docker.io/library/golang:1.26.11-bookworm@sha256:dc40a13b61304647ed7e5d581d246b86413dfc29d63c6d018310feb93cd98fc0 AS build
+WORKDIR /src
+ENV CGO_ENABLED=0 GOFLAGS=-mod=readonly GOTOOLCHAIN=local
+COPY go.mod ./
+COPY *.go ./
+# vet and test first: an agent that fails its own tests is never shipped (the tests use fakes and loopback sockets; the gVisor scenarios in integration/ are not run here)
+RUN go vet ./... && go test -count=1 ./...
+RUN mkdir -p /out && go build -trimpath -ldflags "-s -w" -o /out/agent . && cp "$(go env GOROOT)/LICENSE" /out/GO-LICENSE
+
+FROM scratch AS final
+ARG VERSION=dev
+ARG REVISION=unknown
+ARG SOURCE_URL=https://github.com/PrepLabsAI/rovara-local-aws
+LABEL org.opencontainers.image.title="Rovara function agent" \
+      org.opencontainers.image.description="The static in-sandbox agent of the Rovara function runner (one file: /agent)" \
+      org.opencontainers.image.vendor="Rovara" \
+      org.opencontainers.image.source="${SOURCE_URL}" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.licenses="LicenseRef-Rovara AND BSD-3-Clause" \
+      io.rovara.service="function-agent"
+COPY --from=build --chmod=0555 /out/agent /agent
+# The Go licence travels with the Go runtime inside the binary.
+COPY --from=build /out/GO-LICENSE /licenses/GO-LICENSE
+USER 993:993
+ENTRYPOINT ["/agent"]

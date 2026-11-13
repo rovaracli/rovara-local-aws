@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1.7
+# The model stand-in image (lane SM3): a fake SageMaker inference container for a sealed run (design beyond-emulator-sagemaker-shim.md, mode (b)). Build context: this directory.
+#
+#   docker buildx build --platform linux/arm64,linux/amd64 -f Containerfile .
+#
+# Nothing is published from here; the catalog step builds it, repacks it as a Rovara-built source, scans and signs it (environments/service-catalog/README.md). Both bases are pinned by digest
+# (multi-architecture indexes with linux/arm64 and linux/amd64). The Go floor is 1.26.9 (earlier standard libraries carry GO-2026-6612, a critical finding in the image scan);
+# tests/contract/model-stand-in-image.test.ts holds it. The program uses only the Go standard library (go.mod has no requirements), so the build needs no module download and no network after the base is pulled.
+#
+# Run it as the catalog helper (`model-stand-in@r1`): numeric non-root user 65532, read-only root, no capability, memory and pid limits from the catalog. It writes nothing (it logs to standard error), reads only
+# the config file the worker mounts read-only at /rovara/model-stand-in.json, and makes no outgoing connection (the run's services network has no route out; the program has no dialling code either, and a test says so).
+# Port 8080 is SageMaker's container contract. A non-root user binds it with no extra privilege (only ports below 1024 need one, and the config refuses every port below 1024), so the launcher adds no sysctl and no capability.
+FROM public.ecr.aws/docker/library/golang:1.26.11-bookworm@sha256:dc40a13b61304647ed7e5d581d246b86413dfc29d63c6d018310feb93cd98fc0 AS build
+WORKDIR /src
+ENV CGO_ENABLED=0 GOFLAGS=-mod=readonly GOTOOLCHAIN=local
+COPY go.mod ./
+COPY cmd ./cmd
+COPY internal ./internal
+# The unit tests (loopback sockets, in-memory) and the vet run in the build, so an image that does not pass them is never produced.
+RUN go vet ./... && go test -count=1 ./...
+RUN go build -trimpath -ldflags="-s -w" -o /out/model-stand-in ./cmd/model-stand-in
+
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
+COPY --from=build /out/model-stand-in /usr/local/bin/model-stand-in
+USER 65532:65532
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/model-stand-in"]
+CMD ["--config", "/rovara/model-stand-in.json"]

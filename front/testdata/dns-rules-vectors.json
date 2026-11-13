@@ -1,0 +1,145 @@
+{
+ "comment": "Reference vectors for the DNS rule table (front/sink_dns.go dnsRuleSet). The Cloud worker's DNS helper must give the same answers: its test loads this file. Rules are added in order; Match is case-insensitive and ignores one trailing dot; wildcards match one or more labels under the suffix, never the suffix itself; an exact rule beats a wildcard and a longer wildcard beats a shorter one; a name that is not a plain DNS name (an address, empty, a NUL, a doubled dot) is refused. The default target (an unmatched name) is sink.",
+ "default": "sink",
+ "rules": [
+  [
+   "*.amazonaws.com",
+   "front-tls"
+  ],
+  [
+   "*.amazonaws.com.cn",
+   "front-tls"
+  ],
+  [
+   "*.on.aws",
+   "front-tls"
+  ],
+  [
+   "*.api.aws",
+   "front-tls"
+  ],
+  [
+   "orders.cluster-abc.us-east-1.rds.amazonaws.com",
+   "helper:postgres"
+  ],
+  [
+   "*.rds.amazonaws.com",
+   "helper:postgres"
+  ],
+  [
+   "sinkme.example.test",
+   "sink"
+  ],
+  [
+   "gone.on.aws",
+   "refuse"
+  ]
+ ],
+ "vectors": [
+  [
+   "sns.us-east-1.amazonaws.com",
+   "front-tls"
+  ],
+  [
+   "SNS.US-EAST-1.AMAZONAWS.COM.",
+   "front-tls"
+  ],
+  [
+   "a.b.c.amazonaws.com",
+   "front-tls"
+  ],
+  [
+   "amazonaws.com",
+   "sink"
+  ],
+  [
+   "orders.cluster-abc.us-east-1.rds.amazonaws.com",
+   "helper:postgres"
+  ],
+  [
+   "other.cluster-abc.us-east-1.rds.amazonaws.com",
+   "helper:postgres"
+  ],
+  [
+   "sqs.cn-north-1.amazonaws.com.cn",
+   "front-tls"
+  ],
+  [
+   "x.lambda-url.us-east-1.on.aws",
+   "front-tls"
+  ],
+  [
+   "gone.on.aws",
+   "refuse"
+  ],
+  [
+   "sinkme.example.test",
+   "sink"
+  ],
+  [
+   "unknown.example.org",
+   "sink"
+  ],
+  [
+   "amazonaws.com.evil.com",
+   "sink"
+  ],
+  [
+   "evilamazonaws.com",
+   "sink"
+  ],
+  [
+   "127.0.0.1",
+   "refuse"
+  ],
+  [
+   "",
+   "refuse"
+  ],
+  [
+   "bad..name",
+   "refuse"
+  ],
+  [
+   "sns.us-east-1.amazonaws.com\u0000.evil.com",
+   "refuse"
+  ]
+ ],
+ "bad_rules": [
+  [
+   "gone.on.aws",
+   "sink",
+   "a repeated pattern"
+  ],
+  [
+   "*.com",
+   "sink",
+   "a wildcard over a tld"
+  ],
+  [
+   "Sinkme.example.test",
+   "sink",
+   "an upper-case pattern"
+  ],
+  [
+   "10.0.0.1",
+   "sink",
+   "an address"
+  ],
+  [
+   "x.example.test",
+   "10.0.0.1",
+   "a bad target"
+  ],
+  [
+   "x.example.test",
+   "helper:",
+   "a helper without an alias"
+  ],
+  [
+   "a.*.example.test",
+   "sink",
+   "a wildcard in the middle"
+  ]
+ ]
+}

@@ -1,0 +1,8 @@
+Copied byte for byte from the private Rovara Cloud repository, environments/model-stand-in/ (Containerfile, go.mod, cmd/, internal/),
+at commit be2d67150c1247fbe49ad684a6fd35aa0e1640d5 (branch feat/0519-catalog-rev7). Git tree ids at that commit:
+  Containerfile c742685a3f3eb4e25838d7d84453b0db25b2dba1
+  go.mod        aee332b1dbe348ad3a7d49f50f486164094abd4e
+  cmd           ae4a4a33b371b2b1331713f496c9035ea7b4e684
+  internal      2f7bd22a4c093dce89d716acaaa95b41cdf06318
+The program is the fake SageMaker inference container (catalog entry model-stand-in@r1). It lives here only so the public CI copy can build the
+image (scripts/image-build.sh --target model-stand-in, workflow image.yml input image=model-stand-in); the source of truth stays in Rovara Cloud.

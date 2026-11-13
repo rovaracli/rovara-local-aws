@@ -1,0 +1,101 @@
+{
+ "label": "native",
+ "cmd": "dist/native/rovara-local-aws",
+ "runs": [
+  {
+   "start_s": 1.1706531669478863,
+   "idle_mib": 59.6875,
+   "peak_mib": 99.609375,
+   "median_ms": 2.05,
+   "pass": 52,
+   "total": 54,
+   "failed_calls": [
+    "assume_role"
+   ],
+   "matrix_stdout_tail": [
+    "[native] sagemaker-runtime create_endpoint_without_image_then_invoke PASS 22.0ms endpoint status=InService; invoke error ModelError: An error occurred (ModelError) when ca",
+    "[native] DONE pass=52 total=54"
+   ]
+  },
+  {
+   "start_s": 0.03527925000526011,
+   "idle_mib": 59.625,
+   "peak_mib": 90.65625,
+   "median_ms": 2.1,
+   "pass": 52,
+   "total": 54,
+   "failed_calls": [
+    "assume_role"
+   ],
+   "matrix_stdout_tail": [
+    "[native] sagemaker-runtime create_endpoint_without_image_then_invoke PASS 25.0ms endpoint status=InService; invoke error ModelError: An error occurred (ModelError) when ca",
+    "[native] DONE pass=52 total=54"
+   ]
+  },
+  {
+   "start_s": 0.033504458027891815,
+   "idle_mib": 59.671875,
+   "peak_mib": 101.078125,
+   "median_ms": 1.7999999999999998,
+   "pass": 52,
+   "total": 54,
+   "failed_calls": [
+    "assume_role"
+   ],
+   "matrix_stdout_tail": [
+    "[native] sagemaker-runtime create_endpoint_without_image_then_invoke PASS 19.6ms endpoint status=InService; invoke error ModelError: An error occurred (ModelError) when ca",
+    "[native] DONE pass=52 total=54"
+   ]
+  },
+  {
+   "start_s": 0.034900291939266026,
+   "idle_mib": 59.65625,
+   "peak_mib": 102.015625,
+   "median_ms": 1.7999999999999998,
+   "pass": 52,
+   "total": 54,
+   "failed_calls": [
+    "assume_role"
+   ],
+   "matrix_stdout_tail": [
+    "[native] sagemaker-runtime create_endpoint_without_image_then_invoke PASS 23.1ms endpoint status=InService; invoke error ModelError: An error occurred (ModelError) when ca",
+    "[native] DONE pass=52 total=54"
+   ]
+  },
+  {
+   "start_s": 0.03632804099470377,
+   "idle_mib": 59.609375,
+   "peak_mib": 91.75,
+   "median_ms": 2.1500000000000004,
+   "pass": 52,
+   "total": 54,
+   "failed_calls": [
+    "assume_role"
+   ],
+   "matrix_stdout_tail": [
+    "[native] sagemaker-runtime create_endpoint_without_image_then_invoke PASS 24.8ms endpoint status=InService; invoke error ModelError: An error occurred (ModelError) when ca",
+    "[native] DONE pass=52 total=54"
+   ]
+  }
+ ],
+ "targets": {
+  "start_s": 0.5,
+  "idle_mib": 64.0,
+  "peak_mib": 128.0,
+  "median_ms": 3.0,
+  "pass_min": 52
+ },
+ "start_s": 0.03527925000526011,
+ "idle_mib": 59.65625,
+ "peak_mib": 102.015625,
+ "median_ms": 2.05,
+ "pass": 52,
+ "total": 54,
+ "verdict": {
+  "start_s": "pass",
+  "idle_mib": "pass",
+  "peak_mib": "pass",
+  "median_ms": "pass",
+  "pass": "pass"
+ }
+}

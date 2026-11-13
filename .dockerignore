@@ -1,0 +1,14 @@
+.git
+.superpowers
+.github
+target
+dist
+native
+data
+perf/out
+perf/results
+compat/out
+compat/netgate/build
+image/out
+**/__pycache__
+*.log
