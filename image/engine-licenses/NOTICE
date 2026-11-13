@@ -1,0 +1,21 @@
+Rovara local AWS (engine image)
+
+This image runs two programs.
+
+1. rovara-aws-front. A small front process written by Rovara (source: front/ in this repository). It listens on the
+   run's address, answers Rovara's control paths, keeps the request ledger and forwards AWS API calls to the engine.
+   It is built with the Go standard library only. The Go licence (BSD-3-Clause) is in GO-LICENSE.
+
+2. AWS Emulator (aws-emulator), the local AWS API engine, run as a child of the front on 127.0.0.1. AWS publishes it
+   (github.com/aws/aws-emulator) under CC0 1.0 Universal, except its vendor/ directory, which is Apache-2.0. The
+   unmodified binary comes from AWS's signed package (the signature is verified against AWS's publishing key when the
+   image is built). The third-party notices AWS ships with it are in THIRD_PARTY_LICENSES.
+
+This image is built on AWS Emulator. It is not endorsed by or affiliated with Amazon Web Services.
+
+Files in this directory
+  NOTICE                  this file
+  CC0-1.0.txt             the CC0 1.0 Universal legal code
+  Apache-2.0.txt          the Apache License 2.0 (AWS Emulator's vendor/ directory)
+  THIRD_PARTY_LICENSES    AWS Emulator's third-party notices, as shipped in its package
+  GO-LICENSE              the Go programming language licence (the front links the Go standard library)

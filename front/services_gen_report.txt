@@ -1,0 +1,352 @@
+Shared signing names: how the members of each are told apart (services_gen.go, aws-emulator@1.0.337)
+Order of the signals the front reads: the SigV4 scope names the route key; then the wire protocol (the protocols the member speaks);
+then the operation (X-Amz-Target operation, Query Action, CBOR path operation, or the REST method and URI template);
+then the awsJson target prefix (exact, then without the _<date> suffix) or the Query Version; then the most specific REST template;
+then the verified tie-break for the route key. What is still more than one member is refused.
+
+== agent-registry  (2 services)
+   agent-registry                     protocols=restJson1 ops=3
+   agent-registry-control             protocols=restJson1 ops=15
+   agent-registry | agent-registry-control: rest: route tables are disjoint
+
+== apigateway  (2 services)
+   api-gateway                        protocols=restJson1 ops=124
+   apigatewayv2                       protocols=restJson1 ops=103
+   api-gateway | apigatewayv2: rest: route tables are disjoint
+
+== appconfig  (2 services)
+   appconfig                          protocols=restJson1 ops=56
+   appconfigdata                      protocols=restJson1 ops=2
+   appconfig | appconfigdata: rest: route tables are disjoint
+
+== aws-marketplace  (7 services)
+   marketplace-agreement              protocols=awsJson1_0,rpcv2Cbor target=AWSMPCommerceService_v20200301 ops=25
+   marketplace-catalog                protocols=restJson1 ops=15
+   marketplace-deployment             protocols=restJson1 ops=4
+   marketplace-discovery              protocols=restJson1 ops=9
+   marketplace-entitlement-service    protocols=awsJson1_1,rpcv2Cbor target=AWSMPEntitlementService ops=1
+   marketplace-metering               protocols=awsJson1_1 target=AWSMPMeteringService ops=4
+   marketplace-reporting              protocols=restJson1 ops=1
+   marketplace-agreement | marketplace-catalog: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-agreement | marketplace-deployment: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-agreement | marketplace-discovery: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-agreement | marketplace-entitlement-service: json: target prefix; cbor: disjoint operations
+   marketplace-agreement | marketplace-metering: json: target prefix
+   marketplace-agreement | marketplace-reporting: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-catalog | marketplace-deployment: rest: route tables are disjoint
+   marketplace-catalog | marketplace-discovery: rest: route tables are disjoint
+   marketplace-catalog | marketplace-entitlement-service: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-catalog | marketplace-metering: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-catalog | marketplace-reporting: rest: route tables are disjoint
+   marketplace-deployment | marketplace-discovery: rest: route tables are disjoint
+   marketplace-deployment | marketplace-entitlement-service: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-deployment | marketplace-metering: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-deployment | marketplace-reporting: rest: route tables are disjoint
+   marketplace-discovery | marketplace-entitlement-service: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-discovery | marketplace-metering: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-discovery | marketplace-reporting: rest: route tables are disjoint
+   marketplace-entitlement-service | marketplace-metering: json: target prefix
+   marketplace-entitlement-service | marketplace-reporting: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   marketplace-metering | marketplace-reporting: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+
+== bedrock  (6 services)
+   bedrock                            protocols=restJson1 ops=108
+   bedrock-agent                      protocols=restJson1 ops=86
+   bedrock-agent-runtime              protocols=restJson1 ops=35
+   bedrock-data-automation            protocols=restJson1 ops=27
+   bedrock-data-automation-runtime    protocols=awsJson1_1 target=AmazonBedrockKeystoneRuntimeService ops=6
+   bedrock-runtime                    protocols=restJson1 ops=11
+   bedrock | bedrock-agent: rest: route tables are disjoint
+   bedrock | bedrock-agent-runtime: rest: route tables are disjoint
+   bedrock | bedrock-data-automation: rest: 3 overlapping route pairs, 3 with the same template: NOT SEPARABLE (those routes refused)
+   bedrock | bedrock-data-automation-runtime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   bedrock | bedrock-runtime: rest: route tables are disjoint
+   bedrock-agent | bedrock-agent-runtime: rest: 4 overlapping route pairs, 4 with the same template: NOT SEPARABLE (those routes refused)
+   bedrock-agent | bedrock-data-automation: rest: route tables are disjoint
+   bedrock-agent | bedrock-data-automation-runtime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   bedrock-agent | bedrock-runtime: rest: route tables are disjoint
+   bedrock-agent-runtime | bedrock-data-automation: rest: route tables are disjoint
+   bedrock-agent-runtime | bedrock-data-automation-runtime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   bedrock-agent-runtime | bedrock-runtime: rest: route tables are disjoint
+   bedrock-data-automation | bedrock-data-automation-runtime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   bedrock-data-automation | bedrock-runtime: rest: route tables are disjoint
+   bedrock-data-automation-runtime | bedrock-runtime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+
+== bedrock-agentcore  (2 services)
+   bedrock-agentcore                  protocols=restJson1 ops=67
+   bedrock-agentcore-control          protocols=restJson1 ops=171
+   bedrock-agentcore | bedrock-agentcore-control: rest: route tables are disjoint
+
+== cassandra  (2 services)
+   keyspaces                          protocols=awsJson1_0,rpcv2Cbor target=KeyspacesService ops=19
+   keyspacesstreams                   protocols=awsJson1_0 target=KeyspacesStreams ops=4
+   keyspaces | keyspacesstreams: json: target prefix
+
+== chime  (6 services)
+   chime                              protocols=restJson1 ops=62
+   chime-sdk-identity                 protocols=restJson1 ops=30
+   chime-sdk-media-pipelines          protocols=restJson1 ops=31
+   chime-sdk-meetings                 protocols=restJson1 ops=16
+   chime-sdk-messaging                protocols=restJson1 ops=51
+   chime-sdk-voice                    protocols=restJson1 ops=96
+   chime | chime-sdk-identity: rest: route tables are disjoint
+   chime | chime-sdk-media-pipelines: rest: route tables are disjoint
+   chime | chime-sdk-meetings: rest: route tables are disjoint
+   chime | chime-sdk-messaging: rest: route tables are disjoint
+   chime | chime-sdk-voice: rest: 20 overlapping route pairs, 20 with the same template: NOT SEPARABLE (those routes refused)
+   chime-sdk-identity | chime-sdk-media-pipelines: rest: 5 overlapping route pairs, 5 with the same template: NOT SEPARABLE (those routes refused)
+   chime-sdk-identity | chime-sdk-meetings: rest: 5 overlapping route pairs, 5 with the same template: NOT SEPARABLE (those routes refused)
+   chime-sdk-identity | chime-sdk-messaging: rest: 5 overlapping route pairs, 5 with the same template: NOT SEPARABLE (those routes refused)
+   chime-sdk-identity | chime-sdk-voice: rest: 5 overlapping route pairs, 5 with the same template: NOT SEPARABLE (those routes refused)
+   chime-sdk-media-pipelines | chime-sdk-meetings: rest: 5 overlapping route pairs, 5 with the same template: NOT SEPARABLE (those routes refused)
+   chime-sdk-media-pipelines | chime-sdk-messaging: rest: 5 overlapping route pairs, 5 with the same template: NOT SEPARABLE (those routes refused)
+   chime-sdk-media-pipelines | chime-sdk-voice: rest: 5 overlapping route pairs, 5 with the same template: NOT SEPARABLE (those routes refused)
+   chime-sdk-meetings | chime-sdk-messaging: rest: 5 overlapping route pairs, 5 with the same template: NOT SEPARABLE (those routes refused)
+   chime-sdk-meetings | chime-sdk-voice: rest: 5 overlapping route pairs, 5 with the same template: NOT SEPARABLE (those routes refused)
+   chime-sdk-messaging | chime-sdk-voice: rest: 5 overlapping route pairs, 5 with the same template: NOT SEPARABLE (those routes refused)
+
+== cloudhsm  (2 services)
+   cloudhsm                           protocols=awsJson1_1 target=CloudHsmFrontendService ops=20
+   cloudhsm-v2                        protocols=awsJson1_1 target=BaldrApiService ops=18
+   cloudhsm | cloudhsm-v2: json: target prefix
+
+== cloudsearch  (2 services)
+   cloudsearch                        protocols=awsQuery version=2013-01-01 ops=26
+   cloudsearch-domain                 protocols=restJson1 ops=3
+   cloudsearch | cloudsearch-domain: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+
+== connect  (2 services)
+   connect                            protocols=restJson1 ops=402
+   connect-contact-lens               protocols=restJson1 ops=1
+   connect | connect-contact-lens: rest: route tables are disjoint
+
+== connect-campaigns  (2 services)
+   connectcampaigns                   protocols=restJson1 ops=22
+   connectcampaignsv2                 protocols=restJson1 ops=37
+   connectcampaigns | connectcampaignsv2: rest: route tables are disjoint
+
+== dynamodb  (2 services)
+   dynamodb                           protocols=awsJson1_0 target=DynamoDB_20120810 ops=58
+   dynamodb-streams                   protocols=awsJson1_0 target=DynamoDBStreams_20120810 ops=4
+   dynamodb | dynamodb-streams: json: target prefix
+
+== elasticloadbalancing  (2 services)
+   elastic-load-balancing             protocols=awsQuery version=2012-06-01 ops=29
+   elastic-load-balancing-v2          protocols=awsQuery version=2015-12-01 ops=51
+   elastic-load-balancing | elastic-load-balancing-v2: query: Version
+
+== es  (2 services)
+   elasticsearch-service              protocols=restJson1 ops=51
+   opensearch                         protocols=restJson1 ops=96
+   elasticsearch-service | opensearch: rest: route tables are disjoint
+
+== events  (3 services)
+   cloudwatch-events                  protocols=awsJson1_1 target=AWSEvents ops=51
+   eventbridge                        protocols=awsJson1_1 target=AWSEvents ops=57
+   eventbridgev2                      protocols=rpcv2Cbor ops=25
+   cloudwatch-events | eventbridge: json: 51 operations in common, same prefix; tie-break serves eventbridge
+   cloudwatch-events | eventbridgev2: no protocol in common
+   eventbridge | eventbridgev2: no protocol in common
+
+== execute-api  (2 services)
+   apigatewaymanagementapi            protocols=restJson1 ops=3
+   connectparticipant                 protocols=restJson1 ops=11
+   apigatewaymanagementapi | connectparticipant: rest: route tables are disjoint
+
+== forecast  (2 services)
+   forecast                           protocols=awsJson1_1 target=AmazonForecast ops=63
+   forecastquery                      protocols=awsJson1_1 target=AmazonForecastRuntime ops=2
+   forecast | forecastquery: json: target prefix
+
+== greengrass  (2 services)
+   greengrass                         protocols=restJson1 ops=92
+   greengrassv2                       protocols=restJson1 ops=29
+   greengrass | greengrassv2: rest: 8 overlapping route pairs, 8 with the same template: NOT SEPARABLE (those routes refused)
+
+== iam  (2 services)
+   iam                                protocols=awsQuery version=2010-05-08 ops=180
+   iam-toolbox                        protocols=restJson1 ops=1
+   iam | iam-toolbox: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+
+== ivs  (2 services)
+   ivs                                protocols=restJson1 ops=41
+   ivs-realtime                       protocols=restJson1 ops=39
+   ivs | ivs-realtime: rest: 3 overlapping route pairs, 3 with the same template: NOT SEPARABLE (those routes refused)
+
+== kinesisanalytics  (2 services)
+   kinesis-analytics                  protocols=awsJson1_1 target=KinesisAnalytics_20150814 ops=20
+   kinesis-analytics-v2               protocols=awsJson1_1 target=KinesisAnalytics_20180523 ops=33
+   kinesis-analytics | kinesis-analytics-v2: json: target prefix differs only by the _<date> suffix (exact prefix)
+
+== kinesisvideo  (5 services)
+   kinesis-video                      protocols=restJson1 ops=32
+   kinesis-video-archived-media       protocols=restJson1 ops=6
+   kinesis-video-media                protocols=restJson1 ops=1
+   kinesis-video-signaling            protocols=restJson1 ops=2
+   kinesis-video-webrtc-storage       protocols=restJson1 ops=2
+   kinesis-video | kinesis-video-archived-media: rest: route tables are disjoint
+   kinesis-video | kinesis-video-media: rest: route tables are disjoint
+   kinesis-video | kinesis-video-signaling: rest: route tables are disjoint
+   kinesis-video | kinesis-video-webrtc-storage: rest: route tables are disjoint
+   kinesis-video-archived-media | kinesis-video-media: rest: route tables are disjoint
+   kinesis-video-archived-media | kinesis-video-signaling: rest: route tables are disjoint
+   kinesis-video-archived-media | kinesis-video-webrtc-storage: rest: route tables are disjoint
+   kinesis-video-media | kinesis-video-signaling: rest: route tables are disjoint
+   kinesis-video-media | kinesis-video-webrtc-storage: rest: route tables are disjoint
+   kinesis-video-signaling | kinesis-video-webrtc-storage: rest: route tables are disjoint
+
+== lambda  (4 services)
+   lambda                             protocols=restJson1 ops=88
+   lambda-core                        protocols=restJson1 ops=6
+   lambda-microvms                    protocols=restJson1 ops=24
+   lambda-web                         protocols=restJson1 ops=20
+   lambda | lambda-core: rest: route tables are disjoint
+   lambda | lambda-microvms: rest: 3 overlapping route pairs, 3 with the same template: NOT SEPARABLE (those routes refused)
+   lambda | lambda-web: rest: route tables are disjoint
+   lambda-core | lambda-microvms: rest: route tables are disjoint
+   lambda-core | lambda-web: rest: route tables are disjoint
+   lambda-microvms | lambda-web: rest: route tables are disjoint
+
+== lex  (4 services)
+   lex-model-building-service         protocols=restJson1 ops=42
+   lex-models-v2                      protocols=restJson1 ops=107
+   lex-runtime-service                protocols=restJson1 ops=5
+   lex-runtime-v2                     protocols=restJson1 ops=6
+   lex-model-building-service | lex-models-v2: rest: 6 overlapping route pairs, 6 with the same template: NOT SEPARABLE (those routes refused)
+   lex-model-building-service | lex-runtime-service: rest: route tables are disjoint
+   lex-model-building-service | lex-runtime-v2: rest: route tables are disjoint
+   lex-models-v2 | lex-runtime-service: rest: route tables are disjoint
+   lex-models-v2 | lex-runtime-v2: rest: route tables are disjoint
+   lex-runtime-service | lex-runtime-v2: rest: route tables are disjoint
+
+== mediastore  (2 services)
+   mediastore                         protocols=awsJson1_1 target=MediaStore_20170901 ops=21
+   mediastore-data                    protocols=restJson1 ops=5
+   mediastore | mediastore-data: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+
+== mgh  (2 services)
+   migration-hub                      protocols=awsJson1_1 target=AWSMigrationHub ops=21
+   migrationhub-config                protocols=awsJson1_1 target=AWSMigrationHubMultiAccountService ops=4
+   migration-hub | migrationhub-config: json: target prefix
+
+== payment-cryptography  (2 services)
+   payment-cryptography               protocols=awsJson1_0 target=PaymentCryptographyControlPlane ops=32
+   payment-cryptography-data          protocols=restJson1 ops=15
+   payment-cryptography | payment-cryptography-data: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+
+== personalize  (3 services)
+   personalize                        protocols=awsJson1_1 target=AmazonPersonalize ops=71
+   personalize-events                 protocols=restJson1 ops=5
+   personalize-runtime                protocols=restJson1 ops=3
+   personalize | personalize-events: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   personalize | personalize-runtime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   personalize-events | personalize-runtime: rest: route tables are disjoint
+
+== rds  (3 services)
+   docdb                              protocols=awsQuery version=2014-10-31 ops=55
+   neptune                            protocols=awsQuery version=2014-10-31 ops=70
+   rds                                protocols=awsQuery version=2014-10-31 ops=168
+   docdb | neptune: query: 54 operations in common, same Version; tie-break serves rds
+   docdb | rds: query: 55 operations in common, same Version; tie-break serves rds
+   neptune | rds: query: 70 operations in common, same Version; tie-break serves rds
+
+== resiliencehub  (2 services)
+   resiliencehub                      protocols=restJson1 ops=63
+   resiliencehubv2                    protocols=restJson1 ops=73
+   resiliencehub | resiliencehubv2: rest: route tables are disjoint
+
+== s3  (2 services)
+   s3                                 protocols=restXml ops=112
+   s3-control                         protocols=restXml ops=97
+   s3 | s3-control: rest: 781 overlapping route pairs, resolved by the more specific template
+
+== sagemaker  (9 services)
+   sagemaker                          protocols=awsJson1_1 target=SageMaker ops=409
+   sagemaker-a2i-runtime              protocols=restJson1 ops=5
+   sagemaker-edge                     protocols=restJson1 ops=3
+   sagemaker-featurestore-runtime     protocols=restJson1 ops=7
+   sagemaker-metrics                  protocols=restJson1 ops=2
+   sagemaker-runtime                  protocols=restJson1 ops=3
+   sagemaker-runtime-http2            protocols=restJson1 ops=1
+   sagemakerjobruntime                protocols=restJson1 ops=4
+   sagemakertrainingsessionruntime    protocols=restJson1 ops=6
+   sagemaker | sagemaker-a2i-runtime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   sagemaker | sagemaker-edge: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   sagemaker | sagemaker-featurestore-runtime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   sagemaker | sagemaker-metrics: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   sagemaker | sagemaker-runtime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   sagemaker | sagemaker-runtime-http2: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   sagemaker | sagemakerjobruntime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   sagemaker | sagemakertrainingsessionruntime: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   sagemaker-a2i-runtime | sagemaker-edge: rest: route tables are disjoint
+   sagemaker-a2i-runtime | sagemaker-featurestore-runtime: rest: route tables are disjoint
+   sagemaker-a2i-runtime | sagemaker-metrics: rest: route tables are disjoint
+   sagemaker-a2i-runtime | sagemaker-runtime: rest: route tables are disjoint
+   sagemaker-a2i-runtime | sagemaker-runtime-http2: rest: route tables are disjoint
+   sagemaker-a2i-runtime | sagemakerjobruntime: rest: route tables are disjoint
+   sagemaker-a2i-runtime | sagemakertrainingsessionruntime: rest: route tables are disjoint
+   sagemaker-edge | sagemaker-featurestore-runtime: rest: route tables are disjoint
+   sagemaker-edge | sagemaker-metrics: rest: route tables are disjoint
+   sagemaker-edge | sagemaker-runtime: rest: route tables are disjoint
+   sagemaker-edge | sagemaker-runtime-http2: rest: route tables are disjoint
+   sagemaker-edge | sagemakerjobruntime: rest: route tables are disjoint
+   sagemaker-edge | sagemakertrainingsessionruntime: rest: route tables are disjoint
+   sagemaker-featurestore-runtime | sagemaker-metrics: rest: route tables are disjoint
+   sagemaker-featurestore-runtime | sagemaker-runtime: rest: route tables are disjoint
+   sagemaker-featurestore-runtime | sagemaker-runtime-http2: rest: route tables are disjoint
+   sagemaker-featurestore-runtime | sagemakerjobruntime: rest: route tables are disjoint
+   sagemaker-featurestore-runtime | sagemakertrainingsessionruntime: rest: route tables are disjoint
+   sagemaker-metrics | sagemaker-runtime: rest: route tables are disjoint
+   sagemaker-metrics | sagemaker-runtime-http2: rest: route tables are disjoint
+   sagemaker-metrics | sagemakerjobruntime: rest: route tables are disjoint
+   sagemaker-metrics | sagemakertrainingsessionruntime: rest: route tables are disjoint
+   sagemaker-runtime | sagemaker-runtime-http2: rest: route tables are disjoint
+   sagemaker-runtime | sagemakerjobruntime: rest: route tables are disjoint
+   sagemaker-runtime | sagemakertrainingsessionruntime: rest: route tables are disjoint
+   sagemaker-runtime-http2 | sagemakerjobruntime: rest: route tables are disjoint
+   sagemaker-runtime-http2 | sagemakertrainingsessionruntime: rest: route tables are disjoint
+   sagemakerjobruntime | sagemakertrainingsessionruntime: rest: route tables are disjoint
+
+== servicecatalog  (2 services)
+   service-catalog                    protocols=awsJson1_1 target=AWS242ServiceCatalogService ops=90
+   service-catalog-appregistry        protocols=restJson1 ops=24
+   service-catalog | service-catalog-appregistry: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+
+== ses  (4 services)
+   mailmanager                        protocols=awsJson1_0,rpcv2Cbor target=MailManagerSvc ops=60
+   pinpoint-email                     protocols=restJson1 ops=42
+   ses                                protocols=awsQuery version=2010-12-01 ops=71
+   sesv2                              protocols=restJson1 ops=116
+   mailmanager | pinpoint-email: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   mailmanager | ses: no protocol in common
+   mailmanager | sesv2: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   pinpoint-email | ses: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+   pinpoint-email | sesv2: rest: route tables are disjoint
+   ses | sesv2: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+
+== signer  (2 services)
+   signer                             protocols=restJson1 ops=19
+   signer-data                        protocols=restJson1 ops=1
+   signer | signer-data: rest: 1 overlapping route pairs, 1 with the same template: NOT SEPARABLE (those routes refused)
+
+== sms-voice  (2 services)
+   pinpoint-sms-voice                 protocols=restJson1 ops=8
+   pinpoint-sms-voice-v2              protocols=awsJson1_0 target=PinpointSMSVoiceV2 ops=110
+   pinpoint-sms-voice | pinpoint-sms-voice-v2: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+
+== timestream  (2 services)
+   timestream-query                   protocols=awsJson1_0 target=Timestream_20181101 ops=15
+   timestream-write                   protocols=awsJson1_0 target=Timestream_20181101 ops=19
+   timestream-query | timestream-write: json: 4 operations in common, same prefix: NOT SEPARABLE (common operations refused)
+
+== transcribe  (2 services)
+   transcribe                         protocols=awsJson1_1 target=Transcribe ops=44
+   transcribe-streaming               protocols=restJson1 ops=5
+   transcribe | transcribe-streaming: rest/rpc: a REST member and an RPC member (the RPC member needs an X-Amz-Target, Action or CBOR path, the REST member a method and path that match a route)
+
+== wisdom  (2 services)
+   qconnect                           protocols=restJson1 ops=94
+   wisdom                             protocols=restJson1 ops=41
+   qconnect | wisdom: rest: 41 overlapping route pairs, 41 with the same template: NOT SEPARABLE (those routes refused)
+
+pairs with a signal the front cannot separate on its own: 20 (each is refused when it arises, unless a tie-break above names the member)

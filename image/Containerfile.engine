@@ -1,0 +1,103 @@
+# Rovara local AWS, engine image (AWS Emulator behind the Rovara front). Decision 105/106 of the Rovara decisions log.
+# Replaces image/Containerfile (the native build of the Java fork) for catalog entry local-aws@r1; the old file is kept
+# for the frozen fork.
+#
+# Three stages, every base pinned by digest (the tag in front of the digest is only for readers):
+#   front   the Go toolchain. Vets and tests the front, then builds one static binary (no cgo, standard library only).
+#   engine  Debian slim. Downloads AWS Emulator's signed arm64 package at one pinned version (never "latest"), checks its
+#           sha256, then checks the GPG signature against AWS's publishing key ONLY: the key's fingerprint is checked, that
+#           one key is exported into its own keyring, gpgv verifies against that keyring and the status line VALIDSIG must
+#           carry the pinned fingerprint (a signature by any other key in the downloaded key file does not pass). It then
+#           unpacks the package with dpkg-deb -x (the package's install scripts never run).
+#   final   distroless glibc base. The engine is dynamically linked against glibc only (libc, libm, libpthread, libdl).
+#           The final stage has no RUN: it needs no shell.
+#
+# Run contract (matches image/catalog-entry.engine.json):
+#   user 10001:10001 (numeric), read-only root filesystem, the only writable path is /tmp (the worker mounts a tmpfs there:
+#   the front keeps the engine's keys and CA in a private directory under it and removes it again), one port 4566, health
+#   GET /_rovara/health (no HEALTHCHECK instruction: the image has no client; the worker probes from outside).
+#   Settings come from the environment and are never baked in. With a control token set the front refuses to start unless
+#   all of these are set (front/config.go, the fork's run contract):
+#     ROVARA_AWS_CONTROL_TOKEN                          random per run; without it every /_rovara/* path except health answers 403
+#     QUARKUS_HTTP_HOST                                 the run's own IP literal (a wildcard is refused)
+#     ROVARA_AWS_BASE_URL                               http://aws:4566
+#     ROVARA_AWS_AUTH_PRESIGN_SECRET                    random per run, 16+ characters
+#     ROVARA_AWS_SERVICES_SQS_RECEIPT_HANDLE_SECRET     random per run, 16+ characters
+#   The front starts the engine with telemetry off three ways (-t off, EMULATOR_TELEMETRY=off, a config file) and with
+#   signature checks off (any access key is accepted, as in the fork). DOCKER_HOST is not set and nothing in the image can
+#   talk to a container engine.
+#
+# Build context: the repository root (scripts/image-build-engine.sh passes it).
+
+FROM docker.io/library/golang:1.26.11-bookworm@sha256:dc40a13b61304647ed7e5d581d246b86413dfc29d63c6d018310feb93cd98fc0 AS front
+ARG VERSION=dev
+WORKDIR /src
+COPY front/ /src/
+# the front tests read ../README.md (a claim check), so it travels into the test stage beside /src
+COPY README.md /README.md
+# vet and test first: a front that fails its own tests is never shipped
+RUN go vet ./... && go test -count=1 ./...
+RUN mkdir -p /out && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/rovara-aws-front . \
+    && cp "$(go env GOROOT)/LICENSE" /out/GO-LICENSE
+
+FROM docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS engine
+# The one pinned engine version. To upgrade: change all three values together, after the compat suite, the matrix and the
+# memory gate pass on the new version (scripts/front-compat.sh).
+ARG ENGINE_VERSION=1.0.337
+ARG ENGINE_DEB_SHA256=f5ab9c116fa77992584ece727e7b8ec528f9ac9202280025970465dcd3ac0f26
+ARG ENGINE_SIGNER_FINGERPRINT=98BCF336A3BE53B734E967C52E5BF49BD940F624
+ARG ENGINE_BASE_URL=https://downloads.aws.com/aws-emulator/packages/aws-emulator/LTS
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg gpgv \
+    && rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+    cd /tmp; \
+    deb="aws-emulator_${ENGINE_VERSION}-1_arm64.deb"; \
+    curl -fsSLO "${ENGINE_BASE_URL}/${deb}"; \
+    curl -fsSLO "${ENGINE_BASE_URL}/${deb}.sig"; \
+    curl -fsSLo aws-publishing.asc https://downloads.aws.com/keys/gpg/current.asc; \
+    echo "${ENGINE_DEB_SHA256}  ${deb}" | sha256sum -c -; \
+    export GNUPGHOME="$(mktemp -d)"; \
+    gpg --batch --import aws-publishing.asc; \
+    found="$(gpg --batch --with-colons --fingerprint ssm-publishing@amazon.com | awk -F: '/^fpr:/ { print $10; exit }')"; \
+    [ "${found}" = "${ENGINE_SIGNER_FINGERPRINT}" ] || { echo "the publishing key's fingerprint is not the expected one" >&2; exit 1; }; \
+    gpg --batch --export "${ENGINE_SIGNER_FINGERPRINT}" > pinned-key.gpg; \
+    gpgv --status-fd 3 --keyring ./pinned-key.gpg "${deb}.sig" "${deb}" 3> verify.status; \
+    awk -v f="${ENGINE_SIGNER_FINGERPRINT}" '$2 == "VALIDSIG" && ($3 == f || $NF == f) { ok = 1 } END { exit !ok }' verify.status; \
+    mkdir -p /rootfs; \
+    dpkg-deb -x "${deb}" /rootfs; \
+    test -x /rootfs/opt/aws-emulator/bin/aws-emulator; \
+    test -s /rootfs/opt/aws-emulator/THIRD_PARTY_LICENSES; \
+    "/rootfs/opt/aws-emulator/bin/aws-emulator" -v | grep -q "^Version: ${ENGINE_VERSION}\$"
+
+FROM gcr.io/distroless/base-debian13:nonroot@sha256:7fe4df6a4413adf5889960d345a28b4574aea0872ea47684c7244c8d88027dca AS final
+ARG VERSION=dev
+ARG REVISION=unknown
+ARG SOURCE_URL=https://github.com/PrepLabsAI/rovara-local-aws
+LABEL org.opencontainers.image.title="Rovara local AWS" \
+      org.opencontainers.image.description="AWS Emulator behind the Rovara front, for Rovara test environments" \
+      org.opencontainers.image.vendor="Rovara" \
+      org.opencontainers.image.source="${SOURCE_URL}" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.licenses="LicenseRef-Rovara AND CC0-1.0 AND Apache-2.0 AND BSD-3-Clause" \
+      io.rovara.service="local-aws" \
+      io.rovara.engine="aws-emulator" \
+      io.rovara.licence-dir="/usr/share/licenses/rovara-local-aws" \
+      io.rovara.run.user="10001:10001" \
+      io.rovara.run.port="4566" \
+      io.rovara.run.health-path="/_rovara/health" \
+      io.rovara.run.writable-path="/tmp"
+COPY --from=front --chmod=0555 /out/rovara-aws-front /usr/local/bin/rovara-aws-front
+COPY --from=engine /rootfs/opt/aws-emulator /opt/aws-emulator
+# The licence files travel with every copy of the software.
+COPY image/engine-licenses/ /usr/share/licenses/rovara-local-aws/
+COPY --from=engine /rootfs/opt/aws-emulator/THIRD_PARTY_LICENSES /usr/share/licenses/rovara-local-aws/THIRD_PARTY_LICENSES
+COPY --from=front /out/GO-LICENSE /usr/share/licenses/rovara-local-aws/GO-LICENSE
+ENV HOME=/tmp \
+    ROVARA_AWS_FRONT_WORKDIR=/tmp \
+    ROVARA_AWS_ENGINE_BIN=/opt/aws-emulator/bin/aws-emulator
+WORKDIR /tmp
+USER 10001:10001
+EXPOSE 4566
+ENTRYPOINT ["/usr/local/bin/rovara-aws-front"]
